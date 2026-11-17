@@ -10,12 +10,13 @@ function game(marks = []) {
   let nextTimer = 0, saved;
   const cells = Array.from({ length: 64 }, () => {
     const classes = new Set(), symbol = {}, attributes = {};
+    let updates = 0;
     return {
-      symbol, attributes,
+      symbol, attributes, get updates() { return updates; },
       classList: {
         add(name) { classes.add(name); },
         remove(name) { classes.delete(name); },
-        toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); }
+        toggle(name, enabled) { updates++; enabled ? classes.add(name) : classes.delete(name); }
       },
       querySelector() { return symbol; },
       setAttribute(name, value) { attributes[name] = value; }
@@ -23,7 +24,7 @@ function game(marks = []) {
   });
   const state = { dogs: [], marks: [...marks], wrong: [], hearts: 3, outcome: null };
   const context = vm.createContext({
-    state, cells, pendingTap: null, undoStack: [], loadingPuzzle: false,
+    state, cells, pendingTap: null, undoStack: [], loadingPuzzle: false, displayedHearts: -1,
     SIZE: 8, COLOR_NAMES: ["sage"],
     puzzle: { regions: Array(64).fill(0), solution: Array(8).fill(2) },
     $: id => elements[id] ||= {
@@ -38,7 +39,7 @@ function game(marks = []) {
     setTimeout(callback) { timers.set(++nextTimer, callback); return nextTimer; },
     clearTimeout(id) { timers.delete(id); }
   });
-  const start = html.indexOf("    function render() {");
+  const start = html.indexOf("    function render(indices) {");
   const end = html.indexOf("    function finish(outcome) {", start);
   assert.ok(start !== -1 && end !== -1);
   vm.runInContext(html.slice(start, end), context);
@@ -58,6 +59,13 @@ function game(marks = []) {
     get saved() { return JSON.parse(saved); }
   };
 }
+
+test("render updates only the cells whose state changed", () => {
+  const app = game();
+  app.context.render([7]);
+  assert.equal(app.cells[7].updates, 3);
+  assert.equal(app.cells.filter(cell => cell.updates > 0).length, 1);
+});
 
 test("a single tap renders and saves its mark before the double-tap window expires", () => {
   const app = game();
