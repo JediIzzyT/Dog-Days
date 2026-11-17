@@ -31,7 +31,7 @@
     }
     button, summary { -webkit-tap-highlight-color: transparent; }
     button { font: inherit; color: inherit; cursor: pointer; }
-    button:focus-visible, summary:focus-visible, textarea:focus-visible {
+    button:focus-visible, summary:focus-visible, textarea:focus-visible, a:focus-visible {
       outline: 3px solid #29674f;
       outline-offset: 4px;
     }
@@ -50,7 +50,9 @@
     h1 { margin: 0 0 9px; font-size: clamp(29px, 7vw, 39px); line-height: 1.14; letter-spacing: -1.6px; font-weight: 750; }
     .intro-line { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
     .intro p { margin: 0; color: var(--muted); font-size: 14px; }
-    .edition { font-size: 11px; color: var(--muted); white-space: nowrap; border: 1px solid #bdccbd; border-radius: 5px; padding: 4px 6px; letter-spacing: .3px; }
+    .edition { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; background: transparent; font-size: 11px; color: var(--muted); white-space: nowrap; border: 1px solid #bdccbd; border-radius: 5px; padding: 4px 6px; letter-spacing: .3px; }
+    .edition svg { width: 14px; height: 14px; }
+    .edition:hover:not(:disabled) { background: #dce6da; }
     .board-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; font-size: 13px; }
     .pack-count { display: flex; align-items: center; gap: 7px; }
     .pack-count strong { font-weight: 700; }
@@ -124,6 +126,8 @@
     .rules strong { color: var(--ink); font-weight: 600; }
     .keyboard-note { padding-top: 7px; font-size: 12px; }
     .footer { margin-top: 23px; text-align: center; color: var(--muted); font-size: 11px; line-height: 1.8; }
+    .footer a { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; color: inherit; text-underline-offset: 3px; }
+    .footer a svg { width: 12px; height: 12px; fill: currentColor; stroke: none; }
     .footer-paw { display: inline-block; margin-bottom: 6px; opacity: .65; }
     .footer-paw svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
     .result { text-align: center; padding: 34px 0 14px; }
@@ -150,6 +154,24 @@
     .dialog-actions { display: flex; gap: 8px; }
     .dialog-actions button { flex: 1; }
     .dialog-actions .primary { width: auto; }
+    .calendar { width: 360px; padding: 22px; }
+    .calendar-heading, .calendar-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .calendar-heading { margin-bottom: 16px; }
+    .calendar-heading h2 { margin: 0; }
+    .calendar-icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: transparent; }
+    .calendar-nav h3 { margin: 0; font-size: 15px; font-weight: 650; }
+    .calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+    .calendar-weekdays { margin: 15px 0 6px; text-align: center; font-size: 11px; color: var(--muted); }
+    .calendar-day { position: relative; min-width: 0; min-height: 36px; aspect-ratio: 1; padding: 0 0 4px; background: transparent; border: 1px solid transparent; border-radius: 6px; font-size: 13px; }
+    .calendar-day:hover:not(:disabled), .calendar-icon:hover:not(:disabled) { background: #dce6da; }
+    .calendar-day.completed { background: #dce9d5; color: #234b36; }
+    .calendar-day .completion-check { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 9px; line-height: 1; }
+    .calendar-day[aria-current="date"] { border-color: var(--green); }
+    .calendar-day[aria-pressed="true"] { background: var(--green); color: #fff; }
+    .calendar-day:focus-visible { outline-offset: -2px; }
+    .calendar .calendar-note { margin: 15px 0 8px; font-size: 12px; line-height: 1.5; }
+    .calendar .calendar-storage { margin: 0 0 12px; font-size: 11px; line-height: 1.5; }
+    .calendar-today { width: 100%; }
     .loading { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; background: #e8eee2; border: 1px solid var(--line); border-radius: 9px; font-size: 14px; text-align: center; padding: 24px; z-index: 2; }
     .loading span { font-size: 36px; }
     @keyframes sit { 0% { transform: scale(.65) rotate(-8deg); } 70% { transform: scale(1.12) rotate(4deg); } 100% { transform: scale(1) rotate(0); } }
@@ -191,7 +213,7 @@
       <h1>Sit. Stay. Solve.</h1>
       <div class="intro-line">
         <p id="date-label"></p>
-        <span class="edition" id="edition"></span>
+        <button class="edition" id="edition" type="button" aria-haspopup="dialog" aria-controls="calendar-dialog" aria-expanded="false" disabled><span id="edition-label"></span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg></button>
       </div>
     </div>
 
@@ -242,7 +264,8 @@
 
     <footer class="footer">
       <span class="footer-paw" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="6" cy="7" rx="2.4" ry="3.1" transform="rotate(-25 6 7)"/><ellipse cx="12" cy="5" rx="2.4" ry="3.1"/><ellipse cx="18" cy="7" rx="2.4" ry="3.1" transform="rotate(25 18 7)"/><path d="M5 17c0-3 3-7 7-7s7 4 7 7c0 3-3 4-5 3l-2-.7-2 .7c-2 1-5 0-5-3Z"/></svg></span><br>
-      A little focus. A little space. A lot of good dogs.
+      A Project by Preston <span aria-hidden="true">&middot;</span>
+      <a href="https://github.com/JediIzzyT/Dog-Days" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17 5 18 5.3 18 5.3c.6 1.7.2 2.9.1 3.2.7.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/></svg>GitHub</a>
     </footer>
     <noscript><p>This puzzle needs JavaScript enabled. Everything runs right here, offline.</p></noscript>
   </main>
@@ -253,6 +276,23 @@
     <div class="dialog-actions"><button class="tool" id="cancel-restart" type="button" autofocus>Keep playing</button><button class="primary" id="confirm-restart" type="button">Start over</button></div>
   </dialog>
 
+  <dialog class="calendar" id="calendar-dialog" aria-labelledby="calendar-title" aria-describedby="calendar-note">
+    <div class="calendar-heading">
+      <h2 id="calendar-title">Pick a puzzle</h2>
+      <button class="calendar-icon" id="calendar-close" type="button" aria-label="Close calendar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="calendar-nav">
+      <button class="calendar-icon" id="previous-month" type="button" aria-label="Previous month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+      <h3 id="calendar-month" aria-live="polite"></h3>
+      <button class="calendar-icon" id="next-month" type="button" aria-label="Next month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
+    </div>
+    <div class="calendar-weekdays" aria-hidden="true"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+    <div class="calendar-days" id="calendar-days" role="group" aria-labelledby="calendar-month"></div>
+    <p class="calendar-note" id="calendar-note"><span aria-hidden="true">&#10003;</span> Completed &middot; Puzzles from January 1, 2026.</p>
+    <p class="calendar-storage" id="calendar-storage" role="status"></p>
+    <button class="tool calendar-today" id="calendar-today" type="button">Back to today's puzzle</button>
+  </dialog>
+
   <script>
     "use strict";
     const SIZE = 10;
@@ -261,11 +301,135 @@
     const COLOR_NAMES = ["sage", "lavender", "apricot", "blue", "coral", "mint", "sand", "periwinkle", "pink", "lime"];
     const $ = id => document.getElementById(id);
     const today = new Date();
-    const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const storageKey = `dog-days-v1-${dateKey}`;
-    const edition = Math.floor((Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - Date.UTC(2026, 0, 1)) / 86400000) + 1;
+    const firstDateKey = "2026-01-01";
+    const todayKey = keyForDate(today);
+    let dateKey = todayKey;
+    let storageKey = `dog-days-v1-${dateKey}`;
+    let calendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    let loadingPuzzle = false, historyWarning = "", historyReadWarning = false;
+    const completionCache = new Map();
     let puzzle, state, pendingTap = null, undoStack = [], runningSince = null, storageWarning = false;
     let cells = [], focusedCell = 0;
+
+    function keyForDate(date) {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    }
+    function dateForKey(key) {
+      const [year, month, day] = key.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+    function dayNumber(key) {
+      const date = dateForKey(key);
+      return Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(2026, 0, 1)) / 86400000) + 1;
+    }
+    function completionOffset(key) {
+      const date = dateForKey(key);
+      return Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(date.getFullYear(), 0, 1)) / 86400000);
+    }
+    function readCompletionYear(year) {
+      const name = `dog-days-completed-${year}`;
+      const histories = [completionCache.get(year)];
+      try {
+        const cookie = document.cookie.split("; ").find(item => item.startsWith(`${name}=`));
+        if (cookie) histories.push(cookie.slice(name.length + 1));
+      } catch (error) {
+        console.warn("Dog Days could not read completion cookies:", error);
+        historyWarning = "Cookies are unavailable here. Completion history uses local storage.";
+      }
+      try {
+        histories.push(localStorage.getItem(name));
+      } catch (error) {
+        if (!historyReadWarning) {
+          console.warn("Dog Days could not read completion history:", error);
+          historyWarning = "Some completion history could not be read in this browser.";
+          historyReadWarning = true;
+        }
+      }
+      let bits = "0".repeat(366);
+      for (const history of histories) {
+        if (!history) continue;
+        if (!/^[01]{366}$/.test(history)) {
+          console.warn("Dog Days ignored invalid completion history for", year);
+          historyWarning = "Some saved completion history is invalid.";
+          continue;
+        }
+        bits = Array.from(bits, (bit, i) => bit === "1" || history[i] === "1" ? "1" : "0").join("");
+      }
+      completionCache.set(year, bits);
+      return bits;
+    }
+    function recordCompletion() {
+      const year = dateForKey(dateKey).getFullYear();
+      const name = `dog-days-completed-${year}`;
+      const bits = readCompletionYear(year).split("");
+      bits[completionOffset(dateKey)] = "1";
+      const value = bits.join("");
+      completionCache.set(year, value);
+      let cookieSaved = false, localSaved = false;
+      try {
+        document.cookie = `${name}=${value}; Max-Age=34560000; Path=/; SameSite=Lax`;
+        cookieSaved = document.cookie.split("; ").includes(`${name}=${value}`);
+      } catch (error) {
+        console.warn("Dog Days could not save the completion cookie:", error);
+      }
+      try {
+        localStorage.setItem(name, value);
+        localSaved = true;
+      } catch (error) {
+        console.warn("Dog Days could not save the completion backup:", error);
+      }
+      historyWarning = cookieSaved ? "" : localSaved
+        ? "Cookies are unavailable here. Completion history is saved in this browser's local storage."
+        : "Completion history couldn't be saved. It will last only while this page is open.";
+      if (!cookieSaved && !localSaved) showStatus(historyWarning, true);
+    }
+    function renderCalendar() {
+      const year = calendarMonth.getFullYear(), month = calendarMonth.getMonth();
+      const completed = readCompletionYear(year);
+      $("calendar-month").textContent = calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      $("previous-month").disabled = keyForDate(calendarMonth) <= firstDateKey;
+      $("next-month").disabled = year === today.getFullYear() && month === today.getMonth();
+      $("calendar-storage").textContent = historyWarning || (location.protocol === "file:"
+        ? "Local-file mode: completion history uses this browser's local storage when cookies are unavailable."
+        : "Completed days are remembered in cookies on this browser.");
+      const fragment = document.createDocumentFragment();
+      for (let i = 0; i < calendarMonth.getDay(); i++) {
+        const spacer = document.createElement("span");
+        spacer.setAttribute("aria-hidden", "true");
+        fragment.append(spacer);
+      }
+      const days = new Date(year, month + 1, 0).getDate();
+      for (let day = 1; day <= days; day++) {
+        const date = new Date(year, month, day), key = keyForDate(date);
+        const done = completed[completionOffset(key)] === "1";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `calendar-day${done ? " completed" : ""}`;
+        button.dataset.date = key;
+        button.disabled = key < firstDateKey || key > todayKey;
+        button.textContent = day;
+        button.setAttribute("aria-pressed", String(key === dateKey));
+        button.setAttribute("aria-label", `${date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}, day ${dayNumber(key)}${done ? ", completed" : ""}${key > todayKey ? ", not available yet" : ""}`);
+        if (key === todayKey) button.setAttribute("aria-current", "date");
+        if (done) {
+          const check = document.createElement("span");
+          check.className = "completion-check";
+          check.setAttribute("aria-hidden", "true");
+          check.textContent = "\u2713";
+          button.append(check);
+        }
+        button.addEventListener("click", () => {
+          $("calendar-dialog").close();
+          if (key !== dateKey) loadPuzzle(key, true);
+        });
+        fragment.append(button);
+      }
+      $("calendar-days").replaceChildren(fragment);
+    }
+    function moveCalendarMonth(amount) {
+      calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + amount, 1);
+      renderCalendar();
+    }
 
     function seededRandom(seed) {
       return () => {
@@ -399,7 +563,7 @@
       if (runningSince !== null) { state.elapsed = elapsed(); runningSince = null; }
     }
     function resumeTimer() {
-      if (!state.outcome && !document.hidden && runningSince === null) runningSince = Date.now();
+      if (state && !state.outcome && !loadingPuzzle && !$("calendar-dialog").open && !document.hidden && runningSince === null) runningSince = Date.now();
     }
     function showStatus(text, error = false) {
       $("status").textContent = text;
@@ -441,6 +605,7 @@
     }
 
     function buildBoard() {
+      focusedCell = 0;
       const firstInRegion = puzzle.regions.map((region, i) => puzzle.regions.indexOf(region) === i);
       const fragment = document.createDocumentFragment();
       const rows = Array.from({ length: SIZE }, (_, index) => {
@@ -512,7 +677,7 @@
     }
 
     function toggleMark(index) {
-      if (state.outcome || state.dogs.includes(index) || state.wrong.includes(index)) return;
+      if (loadingPuzzle || state.outcome || state.dogs.includes(index) || state.wrong.includes(index)) return;
       const marked = state.marks.includes(index);
       undoStack.push({ index, marked });
       if (marked) state.marks = state.marks.filter(i => i !== index);
@@ -535,7 +700,7 @@
       pendingTap = null;
     }
     function handleTap(index) {
-      if (state.outcome) return;
+      if (loadingPuzzle || state.outcome) return;
       if (pendingTap && pendingTap.index === index) {
         cancelTap();
         placeDog(index);
@@ -546,7 +711,7 @@
       }
     }
     function placeDog(index) {
-      if (state.outcome || state.dogs.includes(index)) return;
+      if (loadingPuzzle || state.outcome || state.dogs.includes(index)) return;
       if (state.wrong.includes(index)) { showStatus("This tile is already ruled out. Try another patch."); return; }
       const row = Math.floor(index / SIZE), col = index % SIZE;
       if (puzzle.solution[row] === col) {
@@ -587,6 +752,7 @@
     function finish(outcome) {
       pauseTimer();
       state.outcome = outcome;
+      if (outcome === "won") recordCompletion();
       showResult(true);
     }
     function showResult(focus) {
@@ -630,6 +796,43 @@
     $("cancel-restart").addEventListener("click", () => $("restart-dialog").close());
     $("confirm-restart").addEventListener("click", () => { $("restart-dialog").close(); resetGame(); });
     $("play-again").addEventListener("click", resetGame);
+    $("edition").addEventListener("click", () => {
+      flushTap();
+      pauseTimer();
+      if (state) save();
+      const selected = dateForKey(dateKey);
+      calendarMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
+      renderCalendar();
+      $("edition").setAttribute("aria-expanded", "true");
+      $("calendar-dialog").showModal();
+      $("calendar-days").querySelector('[aria-pressed="true"]')?.focus();
+    });
+    $("calendar-close").addEventListener("click", () => $("calendar-dialog").close());
+    $("calendar-dialog").addEventListener("close", () => {
+      $("edition").setAttribute("aria-expanded", "false");
+      resumeTimer();
+    });
+    $("previous-month").addEventListener("click", () => moveCalendarMonth(-1));
+    $("next-month").addEventListener("click", () => moveCalendarMonth(1));
+    $("calendar-today").addEventListener("click", () => {
+      $("calendar-dialog").close();
+      if (dateKey !== todayKey) loadPuzzle(todayKey, true);
+    });
+    $("calendar-days").addEventListener("keydown", event => {
+      const key = event.target.dataset.date;
+      const offsets = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+      if (!key || !(event.key in offsets)) return;
+      event.preventDefault();
+      const next = dateForKey(key);
+      next.setDate(next.getDate() + offsets[event.key]);
+      const nextKey = keyForDate(next);
+      if (nextKey < firstDateKey || nextKey > todayKey) return;
+      if (next.getMonth() !== calendarMonth.getMonth() || next.getFullYear() !== calendarMonth.getFullYear()) {
+        calendarMonth = new Date(next.getFullYear(), next.getMonth(), 1);
+        renderCalendar();
+      }
+      $("calendar-days").querySelector(`[data-date="${nextKey}"]`).focus();
+    });
     $("share").addEventListener("click", async () => {
       const text = `Dog Days · ${dateKey}\n${state.outcome === "won" ? "🐶 All dogs home!" : "🥺 A little ruff."}\n${"🐶".repeat(state.dogs.length)}${"▫️".repeat(10 - state.dogs.length)}\n${"❤️".repeat(state.hearts)}${"🤍".repeat(3 - state.hearts)} · ${formatTime(state.elapsed)}\nSit. Stay. Solve.`;
       try {
@@ -652,32 +855,71 @@
     });
     window.addEventListener("pagehide", () => { if (state) { flushTap(); pauseTimer(); save(); } });
 
-    async function init() {
-      $("date-label").textContent = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-      $("edition").textContent = `DAILY ${String(edition).padStart(3, "0")}`;
+    async function loadPuzzle(key, focus = false) {
+      if (loadingPuzzle || key < firstDateKey || key > todayKey) return;
+      if (state) {
+        flushTap();
+        pauseTimer();
+        save();
+      }
+      loadingPuzzle = true;
+      $("edition").disabled = true;
+      $("restart").disabled = true;
+      $("board").setAttribute("aria-busy", "true");
+      $("game").hidden = false;
+      $("result").hidden = true;
+      $("loading").hidden = false;
+      $("loading").textContent = "Finding the perfect patch\u2026";
+      showStatus("");
       try {
-        puzzle = await generatePuzzle(dateKey);
+        const generated = await generatePuzzle(key);
+        puzzle = generated;
+        dateKey = key;
+        storageKey = `dog-days-v1-${dateKey}`;
+        runningSince = null;
+        undoStack = [];
         state = loadState();
+        if (state.outcome === "won") recordCompletion();
+        const selected = dateForKey(dateKey);
+        $("date-label").textContent = selected.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+        $("edition-label").textContent = `DAY ${String(dayNumber(dateKey)).padStart(3, "0")}`;
+        $("edition").setAttribute("aria-label", `Day ${dayNumber(dateKey)}. Choose a puzzle date.`);
+        $("share-text").hidden = true;
+        $("share-status").textContent = "";
         buildBoard();
         render();
-        $("restart").disabled = false;
         $("loading").hidden = true;
-        resumeTimer();
-        setInterval(() => { if (state && !state.outcome) $("timer").textContent = formatTime(elapsed()); }, 1000);
-        setInterval(() => { if (state && runningSince !== null) save(); }, 15000);
+        if (focus) {
+          if (state.outcome) $("result-title").focus();
+          else cells[0].focus();
+        }
       } catch (error) {
-        console.error("Dog Days initialization failed:", error);
-        $("loading").replaceChildren();
-        const message = document.createElement("p");
-        message.textContent = "Today's puzzle couldn't load. Please try again.";
-        const retry = document.createElement("button");
-        retry.className = "tool";
-        retry.textContent = "Try again";
-        retry.addEventListener("click", () => location.reload());
-        $("loading").append(message, retry);
+        console.error("Dog Days could not load puzzle:", key, error);
+        if (state) {
+          $("loading").hidden = true;
+          render();
+          showStatus("That puzzle couldn't load. Your previous puzzle is still here.", true);
+        } else {
+          $("loading").replaceChildren();
+          const message = document.createElement("p");
+          message.textContent = "This puzzle couldn't load. Please try again.";
+          const retry = document.createElement("button");
+          retry.className = "tool";
+          retry.textContent = "Try again";
+          retry.addEventListener("click", () => loadPuzzle(key, focus));
+          $("loading").append(message, retry);
+        }
+      } finally {
+        loadingPuzzle = false;
+        $("edition").disabled = false;
+        $("restart").disabled = !state;
+        $("board").setAttribute("aria-busy", "false");
+        resumeTimer();
       }
     }
-    init();
+    loadPuzzle(todayKey);
+    setInterval(() => { if (state && !state.outcome) $("timer").textContent = formatTime(elapsed()); }, 1000);
+    setInterval(() => { if (state && runningSince !== null) save(); }, 15000);
   </script>
 </body>
 </html>

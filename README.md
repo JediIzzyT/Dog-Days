@@ -31,6 +31,10 @@ The browser's local calendar date seeds procedural generation. Each generated bo
 
 The same date produces the same puzzle. Reload the page after the date changes to load the next day's board. Replaying a puzzle resets progress without changing its layout.
 
+Select the **DAY 000** button beside the date to open the archive calendar. Browse months and choose any puzzle from January 1, 2026 through today; future dates are unavailable. Use the calendar's arrow keys to move between dates, or choose **Back to today's puzzle**. Switching days preserves each puzzle's saved progress.
+
+Completed days have a check mark in the calendar, even after replaying them. Completion history is stored in a small cookie for each year, with a local-storage backup. Cookies are retained for up to 400 days after the year's latest completion is saved; browser policies may shorten this. When opened directly as a local file, browsers commonly block cookies, so the calendar uses local storage instead. History stays in the same browser and is not synced between devices.
+
 Progress is saved in the browser's local storage when available, including marks, correct placements, mistakes, and elapsed time. The timer pauses while the page is hidden. Storage availability for locally opened files depends on your browser settings.
 
 ## Project structure
