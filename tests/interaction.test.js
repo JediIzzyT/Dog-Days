@@ -158,6 +158,27 @@ test("the seventh dog prompts for one more and the eighth wins", () => {
   assert.equal(app.state.outcome, "won");
 });
 
+test("result labels change without replacing the replay button's icon", () => {
+  const html = readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  const elements = {};
+  const state = { outcome: "won", dogs: Array(8).fill(0), elapsed: 0, hearts: 3 };
+  const context = vm.createContext({
+    state, SIZE: 8, formatTime: () => "0:00",
+    $: id => elements[id] ||= {}
+  });
+  const start = html.indexOf("    function showResult(focus) {");
+  const end = html.indexOf("    function resetGame() {", start);
+  assert.ok(start !== -1 && end !== -1);
+  vm.runInContext(html.slice(start, end), context);
+  context.showResult(false);
+  assert.equal(elements["play-again-label"].textContent, "Play this puzzle again");
+  assert.equal(elements["play-again"], undefined);
+  state.outcome = "lost";
+  context.showResult(false);
+  assert.equal(elements["play-again-label"].textContent, "Give it another go");
+  assert.equal(elements["play-again"], undefined);
+});
+
 test("arrow keys stop at the edges of the eight-by-eight board", () => {
   const app = game();
   let focused;
