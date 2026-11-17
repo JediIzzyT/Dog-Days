@@ -10,7 +10,7 @@ const dateKey = "2026-11-16";
 const plain = value => JSON.parse(JSON.stringify(value));
 
 function game(store = new Map()) {
-  const elements = {}, documentHandlers = {}, windowHandlers = {}, warnings = [];
+  const elements = {}, documentHandlers = {}, windowHandlers = {}, warnings = [], writes = [];
   const document = {
     hidden: false,
     addEventListener(type, handler) { documentHandlers[type] = handler; }
@@ -18,13 +18,14 @@ function game(store = new Map()) {
   const context = vm.createContext({
     SIZE: 8, PUZZLE_VERSION: 3, storageKey, dateKey, todayKey: dateKey, firstDateKey: "2026-01-01",
     completionCache: new Map(), storageWarning: false, savedPuzzle: null,
+    persistedDateKey: null, legacyPuzzlePending: false,
     runningSince: null, undoStack: [], loadingPuzzle: false,
     puzzle: { solution: Array.from({ length: 8 }, (_, row) => row) },
     document,
     window: { addEventListener(type, handler) { windowHandlers[type] = handler; } },
     localStorage: {
       getItem(key) { return store.get(key) ?? null; },
-      setItem(key, value) { store.set(key, value); }
+      setItem(key, value) { writes.push(key); store.set(key, value); }
     },
     console: { warn(...args) { warnings.push(args); } },
     $: id => elements[id] ||= { classList: { toggle() {} } },
@@ -41,15 +42,37 @@ function game(store = new Map()) {
   run("    function lastPuzzleDate() {", "    loadPuzzle(lastPuzzleDate());");
   context.state = context.emptyState();
   return {
-    context, elements, document, warnings, documentHandlers, windowHandlers,
+    context, elements, document, warnings, documentHandlers, windowHandlers, writes, store,
     restore() {
       context.undoStack = [];
       context.state = context.loadState();
       return plain(context.state);
     },
-    get saved() { return JSON.parse(store.get(storageKey)); }
+    get saved() {
+      const saved = JSON.parse(store.get(storageKey));
+      for (const [key, value] of store) {
+        const match = /^dog-days-puzzle-(\d{4}-\d{2}-\d{2})$/.exec(key);
+        if (match) saved.puzzles[match[1]] = JSON.parse(value);
+      }
+      return saved;
+    }
   };
 }
+
+test("puzzle snapshots are stored per day without rewriting the archive on each save", () => {
+  const app = game();
+  app.context.state = playedState();
+  app.context.save();
+  const puzzleKey = `dog-days-puzzle-${dateKey}`;
+  assert.deepEqual(JSON.parse(app.store.get(puzzleKey)).marks, [2, 3]);
+  assert.deepEqual(JSON.parse(app.store.get(storageKey)).puzzles, {});
+  const metadataWrites = app.writes.filter(key => key === storageKey).length;
+
+  app.context.state.marks = [4];
+  app.context.save();
+  assert.deepEqual(JSON.parse(app.store.get(puzzleKey)).marks, [4]);
+  assert.equal(app.writes.filter(key => key === storageKey).length, metadataWrites);
+});
 
 function playedState() {
   return {
@@ -74,7 +97,7 @@ test("browser and PWA sessions restore all progress, undo history, and the selec
   installed.context.state.marks.pop();
   installed.context.undoStack.pop();
   installed.context.save();
-  browser.windowHandlers.storage({ key: storageKey });
+  browser.windowHandlers.storage({ key: `dog-days-puzzle-${dateKey}` });
   assert.deepEqual(plain(browser.context.state.marks), [2]);
   assert.equal(browser.context.undoStack.length, 1);
 });
