@@ -841,7 +841,10 @@
       $("calendar-days").querySelector(`[data-date="${nextKey}"]`).focus();
     });
     $("share").addEventListener("click", async () => {
-      const text = `Dog Days · ${dateKey}\n${state.outcome === "won" ? "🐶 All dogs home!" : "🥺 A little ruff."}\n${"🐶".repeat(state.dogs.length)}${"▫️".repeat(10 - state.dogs.length)}\n${"❤️".repeat(state.hearts)}${"🤍".repeat(3 - state.hearts)} · ${formatTime(state.elapsed)}\nSit. Stay. Solve.`;
+      const pageUrl = new URL(location.href);
+      pageUrl.search = "";
+      pageUrl.hash = "";
+      const text = `Dog Days · ${dateKey}\n${state.outcome === "won" ? "🐶 All dogs home!" : "🥺 A little ruff."}\n${"🐶".repeat(state.dogs.length)}${"▫️".repeat(10 - state.dogs.length)}\n${"❤️".repeat(state.hearts)}${"🤍".repeat(3 - state.hearts)} · ${formatTime(state.elapsed)}\nSit. Stay. Solve.\n${pageUrl.href}`;
       try {
         if (!navigator.clipboard) throw new Error("Clipboard is unavailable.");
         await navigator.clipboard.writeText(text);
@@ -948,8 +951,6 @@
             });
           }
           await navigator.serviceWorker.ready;
-          offlineStatus.textContent = "Ready to play offline.";
-          offlineStatus.hidden = false;
         } catch (error) {
           reportOfflineError(error);
         }
