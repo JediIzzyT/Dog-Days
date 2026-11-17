@@ -42,7 +42,7 @@ Progress is saved in the browser's local storage when available, including marks
 - `index.html` - All markup, styles, puzzle generation, and gameplay.
 - `README.md` - Project information and playing instructions.
 
-The responsive interface uses a narrow, centered layout, system sans-serif fonts, keyboard navigation, labeled grid cells, and reduced-motion support. There are no external scripts, fonts, or assets.
+The responsive interface uses a narrow, centered layout, system sans-serif fonts, keyboard navigation, labeled grid cells, and reduced-motion support. Board squares stay the same size as marks and dogs are added, while resizing with the screen or orientation. There are no external scripts, fonts, or assets.
 
 ## Development
 
