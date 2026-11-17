@@ -107,7 +107,6 @@
     .cell .symbol { pointer-events: none; }
     .cell.marked .symbol { font-size: 23px; font-weight: 300; opacity: .6; }
     .cell.dog .symbol { filter: drop-shadow(0 2px 0 #203d341a); animation: sit .3s cubic-bezier(.16, 1, .3, 1); }
-    .cell.pending { box-shadow: inset 0 0 0 3px #294f4370; }
     .cell.incorrect { animation: wrong .3s ease-out; }
     .cell.incorrect .symbol { color: #8c252c; opacity: 1; }
     .cell:focus-visible { z-index: 1; outline: 3px solid var(--ink); outline-offset: -4px; }
@@ -649,7 +648,7 @@
         symbol.setAttribute("aria-hidden", "true");
         cell.append(symbol);
         cell.addEventListener("click", event => {
-          if (event.detail === 0) { flushTap(); toggleMark(index); return; }
+          if (event.detail === 0) { cancelTap(); toggleMark(index); return; }
           handleTap(index);
         });
         cell.addEventListener("dblclick", event => event.preventDefault());
@@ -692,18 +691,9 @@
       render();
       save();
     }
-    function flushTap() {
-      if (!pendingTap) return;
-      const { index, timer } = pendingTap;
-      clearTimeout(timer);
-      cells[index].classList.remove("pending");
-      pendingTap = null;
-      toggleMark(index);
-    }
     function cancelTap() {
       if (!pendingTap) return;
       clearTimeout(pendingTap.timer);
-      cells[pendingTap.index].classList.remove("pending");
       pendingTap = null;
     }
     function handleTap(index) {
@@ -712,9 +702,10 @@
         cancelTap();
         placeDog(index);
       } else {
-        flushTap();
-        cells[index].classList.add("pending");
-        pendingTap = { index, timer: setTimeout(flushTap, 340) };
+        cancelTap();
+        toggleMark(index);
+        // Only double-tap detection waits; the mark is already rendered and saved.
+        pendingTap = { index, timer: setTimeout(cancelTap, 340) };
       }
     }
     function placeDog(index) {
@@ -748,7 +739,7 @@
       else if (event.key === " " || event.key === "Enter") {
         event.preventDefault();
         if (event.repeat) return;
-        flushTap();
+        cancelTap();
         if (event.key === "Enter") placeDog(index);
         else toggleMark(index);
         return;
@@ -791,7 +782,7 @@
       cells[0].focus();
     }
     $("undo").addEventListener("click", () => {
-      flushTap();
+      cancelTap();
       const last = undoStack.pop();
       if (!last) return;
       state.marks = state.marks.filter(i => i !== last.index);
@@ -799,12 +790,12 @@
       render();
       save();
     });
-    $("restart").addEventListener("click", () => { flushTap(); $("restart-dialog").showModal(); });
+    $("restart").addEventListener("click", () => { cancelTap(); $("restart-dialog").showModal(); });
     $("cancel-restart").addEventListener("click", () => $("restart-dialog").close());
     $("confirm-restart").addEventListener("click", () => { $("restart-dialog").close(); resetGame(); });
     $("play-again").addEventListener("click", resetGame);
     $("edition").addEventListener("click", () => {
-      flushTap();
+      cancelTap();
       pauseTimer();
       if (state) save();
       const selected = dateForKey(dateKey);
@@ -860,15 +851,15 @@
     });
     document.addEventListener("visibilitychange", () => {
       if (!state) return;
-      if (document.hidden) { flushTap(); pauseTimer(); save(); }
+      if (document.hidden) { cancelTap(); pauseTimer(); save(); }
       else resumeTimer();
     });
-    window.addEventListener("pagehide", () => { if (state) { flushTap(); pauseTimer(); save(); } });
+    window.addEventListener("pagehide", () => { if (state) { cancelTap(); pauseTimer(); save(); } });
 
     async function loadPuzzle(key, focus = false) {
       if (loadingPuzzle || key < firstDateKey || key > todayKey) return;
       if (state) {
-        flushTap();
+        cancelTap();
         pauseTimer();
         save();
       }
