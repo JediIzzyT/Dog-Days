@@ -16,10 +16,10 @@ function game(store = new Map()) {
     addEventListener(type, handler) { documentHandlers[type] = handler; }
   };
   const context = vm.createContext({
-    SIZE: 10, storageKey, dateKey, todayKey: dateKey, firstDateKey: "2026-01-01",
+    SIZE: 8, PUZZLE_VERSION: 3, storageKey, dateKey, todayKey: dateKey, firstDateKey: "2026-01-01",
     completionCache: new Map(), storageWarning: false, savedPuzzle: null,
     runningSince: null, undoStack: [], loadingPuzzle: false,
-    puzzle: { solution: Array.from({ length: 10 }, (_, row) => row) },
+    puzzle: { solution: Array.from({ length: 8 }, (_, row) => row) },
     document,
     window: { addEventListener(type, handler) { windowHandlers[type] = handler; } },
     localStorage: {
@@ -101,7 +101,7 @@ test("saving another date preserves prior puzzles and replaying preserves comple
   assert.equal(app.saved.completed["2026"][319], "1");
 });
 
-test("legacy local-storage saves migrate without deleting old data or accessing cookies", () => {
+test("legacy puzzle progress resets with notice while completion history migrates without cookies", () => {
   const legacyKey = `dog-days-v1-${dateKey}`;
   const historyKey = "dog-days-completed-2026";
   const store = new Map([
@@ -113,7 +113,8 @@ test("legacy local-storage saves migrate without deleting old data or accessing 
     get() { throw new Error("Cookies should not be read"); },
     set() { throw new Error("Cookies should not be written"); }
   });
-  assert.deepEqual(app.restore(), playedState());
+  assert.deepEqual(app.restore(), plain(app.context.emptyState()));
+  assert.match(app.elements.status.textContent, /earlier progress has been reset/);
   assert.deepEqual(plain(app.context.undoStack), []);
   app.context.save();
   assert.equal(app.context.readCompletionYear(2026), `01${"0".repeat(364)}`);
@@ -123,7 +124,7 @@ test("legacy local-storage saves migrate without deleting old data or accessing 
   assert.equal(store.has(historyKey), true);
 
   const migrated = game(new Map([[storageKey, store.get(storageKey)]]));
-  assert.deepEqual(migrated.restore(), playedState());
+  assert.deepEqual(migrated.restore(), plain(app.context.emptyState()));
   assert.equal(migrated.context.readCompletionYear(2026), `01${"0".repeat(364)}`);
 });
 
@@ -140,7 +141,7 @@ test("finished wins and losses retain their outcome and final timer", () => {
   for (const outcome of ["won", "lost"]) {
     const store = new Map(), app = game(store);
     app.context.state = outcome === "won"
-      ? { dogs: Array.from({ length: 10 }, (_, row) => row * 11), marks: [], wrong: [], hearts: 3, elapsed: 42, outcome }
+      ? { dogs: Array.from({ length: 8 }, (_, row) => row * 9), marks: [], wrong: [], hearts: 3, elapsed: 42, outcome }
       : { dogs: [], marks: [], wrong: [1, 2, 3], hearts: 0, elapsed: 42, outcome };
     const expected = plain(app.context.state);
     app.context.save();
@@ -191,18 +192,34 @@ test("hidden pages save immediately and returning pages refresh changed progress
 
 test("invalid saved state or undo history is rejected with a visible warning", () => {
   for (const change of [
-    { dogs: [1] }, { marks: [1] }, { hearts: 3 }, { elapsed: -1 },
-    { undoStack: [{ index: 100, marked: false }] },
+    { dogs: [1] }, { marks: [1] }, { marks: [64] }, { hearts: 3 }, { elapsed: -1 },
+    { undoStack: [{ index: 64, marked: false }] },
     { undoStack: [{ index: 0, marked: false }] }
   ]) {
     const store = new Map([[storageKey, JSON.stringify({
-      version: 2, completed: {}, puzzles: { [dateKey]: { ...playedState(), ...change } }
+      version: 2, completed: {}, puzzles: { [dateKey]: { ...playedState(), puzzleVersion: 3, ...change } }
     })]]);
     const app = game(store);
     assert.deepEqual(app.restore().dogs, []);
     assert.match(app.elements["storage-status"].textContent, /couldn't be restored/);
     assert.ok(app.warnings.length);
   }
+});
+
+test("old ten-by-ten progress never restores onto the new puzzle and completions survive", () => {
+  const store = new Map([[storageKey, JSON.stringify({
+    version: 2, completed: { 2026: "1".repeat(366) },
+    puzzles: { [dateKey]: playedState() }, lastDate: dateKey
+  })]]);
+  const app = game(store);
+  assert.deepEqual(app.restore(), plain(app.context.emptyState()));
+  assert.match(app.elements.status.textContent, /earlier progress has been reset/);
+  app.context.save();
+  assert.equal(app.saved.puzzles[dateKey].puzzleVersion, 3);
+  assert.equal(app.saved.completed[2026], "1".repeat(366));
+  const restored = game(store);
+  assert.deepEqual(restored.restore(), plain(app.context.emptyState()));
+  assert.equal(restored.elements.status, undefined);
 });
 
 test("unreadable or unwritable storage reports failure without overwriting existing data", () => {
