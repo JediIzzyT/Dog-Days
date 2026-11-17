@@ -45,18 +45,17 @@
     svg { display: block; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
     .page { width: min(100% - 40px, 480px); margin: 0 auto; padding: 32px 0 24px; }
     .masthead { display: flex; justify-content: space-between; align-items: center; padding-bottom: 23px; border-bottom: 1px solid var(--line); }
-    .brand { display: flex; align-items: center; gap: 9px; font-size: 20px; font-weight: 750; letter-spacing: -.8px; }
+    .brand { display: flex; align-items: center; gap: 9px; font-size: 20px; font-weight: 750; letter-spacing: -.04em; }
     .brand-icon { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; color: #f5f8ee; background: var(--green); transform: rotate(-12deg); }
     .brand-icon svg { width: 20px; height: 20px; fill: currentColor; stroke: none; }
     .daily-label { font-size: 12px; color: var(--muted); }
     .daily-label span { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #537c4e; vertical-align: 1px; }
     .intro { padding: 28px 0 25px; }
-    h1 { margin: 0 0 9px; font-size: clamp(29px, 7vw, 39px); line-height: 1.14; letter-spacing: -1.6px; font-weight: 750; }
+    h1 { margin: 0 0 9px; font-size: clamp(29px, 7vw, 39px); line-height: 1.14; letter-spacing: -.04em; font-weight: 750; text-wrap: balance; }
     .intro-line { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
     .intro p { margin: 0; color: var(--muted); font-size: 14px; }
-    .edition { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; background: transparent; font-size: 11px; color: var(--muted); white-space: nowrap; border: 1px solid #bdccbd; border-radius: 5px; padding: 4px 6px; letter-spacing: .3px; }
+    .edition { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; min-height: 44px; background: transparent; font-size: 11px; color: var(--muted); white-space: nowrap; border: 1px solid #bdccbd; border-radius: 7px; padding: 8px 10px; letter-spacing: .3px; transition: background .15s; }
     .edition svg { width: 14px; height: 14px; }
-    .edition:hover:not(:disabled) { background: #dce6da; }
     .board-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; font-size: 13px; }
     .pack-count { display: flex; align-items: center; gap: 7px; }
     .pack-count strong { font-weight: 700; }
@@ -103,30 +102,30 @@
     .cell.region-bottom { border-bottom: 2px solid #304b3e; }
     .cell.last-col { border-right: 0; }
     .cell.last-row { border-bottom: 0; }
-    .cell .region-letter { position: absolute; top: 4px; left: 4px; font-size: 8px; font-weight: 700; opacity: .75; pointer-events: none; }
+    .cell .region-letter { position: absolute; top: 4px; left: 4px; font-size: 10px; font-weight: 700; color: #304b3e; pointer-events: none; }
     .cell .symbol { pointer-events: none; }
-    .cell.marked .symbol { font-size: 23px; font-weight: 300; opacity: .6; }
+    .cell.marked .symbol { font-size: clamp(18px, 5vw, 23px); font-weight: 400; opacity: .75; }
     .cell.dog .symbol { filter: drop-shadow(0 2px 0 #203d341a); animation: sit .3s cubic-bezier(.16, 1, .3, 1); }
     .cell.incorrect { animation: wrong .3s ease-out; }
     .cell.incorrect .symbol { color: #8c252c; opacity: 1; }
     .cell:focus-visible { z-index: 1; outline: 3px solid var(--ink); outline-offset: -4px; }
-    @media (hover: hover) { .cell:hover { filter: brightness(1.05); } .text-button:hover, .tool:hover:not(:disabled) { background: #dce6da; } .primary:hover { background: #214c39; } }
-    .interaction-note { display: flex; justify-content: center; gap: 9px; align-items: center; color: var(--muted); font-size: 12px; margin: 20px 0 17px; }
+    @media (hover: hover) { .cell:hover { filter: brightness(1.05); } .text-button:hover, .tool:hover:not(:disabled), .edition:hover:not(:disabled) { background: #dce6da; } .primary:hover:not(:disabled) { background: #214c39; } }
+    .interaction-note { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 9px; align-items: center; color: var(--muted); font-size: 12px; line-height: 1.5; margin: 18px 0 16px; }
     .interaction-note b { font-weight: 600; color: #365845; }
     .interaction-note .dot { opacity: .5; }
-    .tools { display: flex; justify-content: center; gap: 8px; }
-    .tool { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 9px 16px; background: transparent; border: 1px solid #c6d2c4; border-radius: 7px; font-size: 13px; transition: background .15s; }
+    .tools { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .tool { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 9px 16px; background: transparent; border: 1px solid #b5c7b5; border-radius: 7px; font-size: 13px; transition: background .15s; }
     .tool svg { width: 16px; height: 16px; }
     .status { min-height: 20px; margin: 14px 0 0; text-align: center; font-size: 13px; color: var(--muted); }
     .status.error { color: #963438; }
-    .how-to { margin-top: 21px; padding: 17px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    .how-to summary { display: flex; justify-content: space-between; align-items: center; list-style: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .how-to { margin-top: 21px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .how-to summary { display: flex; justify-content: space-between; align-items: center; min-height: 52px; list-style: none; cursor: pointer; font-size: 13px; font-weight: 600; }
     .how-to summary::-webkit-details-marker { display: none; }
     .how-to .help-label { display: flex; align-items: center; gap: 8px; }
     .how-to .help-label svg { width: 16px; height: 16px; }
     .how-to .chevron { width: 15px; height: 15px; transition: transform .2s; }
     .how-to[open] .chevron { transform: rotate(180deg); }
-    .rules { color: var(--muted); font-size: 13px; line-height: 1.6; margin-top: 15px; }
+    .rules { color: var(--muted); font-size: 13px; line-height: 1.6; padding: 0 0 17px; }
     .rules p { margin: 7px 0; }
     .rules strong { color: var(--ink); font-weight: 600; }
     .keyboard-note { padding-top: 7px; font-size: 12px; }
@@ -149,9 +148,10 @@
     .primary { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; background: var(--green); color: #fff; padding: 14px 20px; border: 0; border-radius: 7px; font-size: 14px; font-weight: 600; transition: background .15s; }
     .text-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 16px; border: 0; border-radius: 6px; background: transparent; font-size: 13px; }
     .result .text-button { margin-top: 9px; }
+    .result .text-button svg { width: 15px; height: 15px; }
     .tomorrow { color: var(--muted); font-size: 12px; margin-top: 25px; }
     .share-text { margin-top: 15px; width: 100%; min-height: 115px; padding: 12px; background: #f7faf4; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 13px; color: var(--ink); resize: vertical; }
-    dialog { border: 1px solid #c4d2c1; padding: 27px; border-radius: 12px; max-width: min(360px, calc(100% - 40px)); color: var(--ink); background: #f4f7ef; box-shadow: 0 16px 60px #00000029; }
+    dialog { border: 1px solid #c4d2c1; padding: 27px; border-radius: 12px; max-width: min(360px, calc(100% - 28px)); max-height: calc(100% - 28px); color: var(--ink); background: #f4f7ef; box-shadow: 0 16px 60px #00000029; }
     dialog::backdrop { background: #17382966; }
     dialog h2 { margin: 0 0 12px; font-size: 23px; letter-spacing: -.5px; }
     dialog p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 0 0 22px; }
@@ -162,11 +162,11 @@
     .calendar-heading, .calendar-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .calendar-heading { margin-bottom: 16px; }
     .calendar-heading h2 { margin: 0; }
-    .calendar-icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: transparent; }
+    .calendar-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; padding: 0; border: 1px solid #b5c7b5; border-radius: 7px; background: transparent; }
     .calendar-nav h3 { margin: 0; font-size: 15px; font-weight: 650; }
     .calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
     .calendar-weekdays { margin: 15px 0 6px; text-align: center; font-size: 11px; color: var(--muted); }
-    .calendar-day { position: relative; min-width: 0; min-height: 36px; aspect-ratio: 1; padding: 0 0 4px; background: transparent; border: 1px solid transparent; border-radius: 6px; font-size: 13px; }
+    .calendar-day { position: relative; min-width: 0; min-height: 44px; aspect-ratio: 1; padding: 0 0 4px; background: transparent; border: 1px solid transparent; border-radius: 6px; font-size: 13px; }
     .calendar-day:hover:not(:disabled), .calendar-icon:hover:not(:disabled) { background: #dce6da; }
     .calendar-day.completed { background: #dce9d5; color: #234b36; }
     .calendar-day .completion-check { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 9px; line-height: 1; }
@@ -185,11 +185,9 @@
       .masthead { padding-bottom: 18px; }
       .intro { padding: 24px 0; }
       .intro-line { align-items: flex-start; }
-      .intro p { font-size: 12px; }
-      .edition { font-size: 10px; }
+      .intro p { font-size: 13px; line-height: 1.4; }
       .meta-right { gap: 12px; }
-      .cell .region-letter { font-size: 7px; top: 3px; left: 3px; }
-      .cell.marked .symbol { font-size: 18px; }
+      .cell .region-letter { font-size: 9px; top: 3px; left: 3px; }
       .interaction-note { font-size: 11px; gap: 6px; }
       .tool { padding-inline: 13px; }
     }
@@ -260,7 +258,7 @@
         <div class="stat"><strong id="result-hearts"></strong><span>Hearts left</span></div>
       </div>
       <button class="primary" id="share" type="button">Share your result <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M5 12v8h14v-8"/></svg></button>
-      <button class="text-button" id="play-again" type="button">Play this puzzle again</button>
+      <button class="text-button" id="play-again" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg><span id="play-again-label">Play this puzzle again</span></button>
       <p class="status" id="share-status" role="status" aria-live="polite"></p>
       <textarea class="share-text" id="share-text" readonly aria-label="Select and copy your result" hidden></textarea>
       <p class="tomorrow">Another day, another pack. New puzzle tomorrow.</p>
@@ -851,7 +849,7 @@
       $("result-found").textContent = `${state.dogs.length}/${SIZE}`;
       $("result-time").textContent = formatTime(state.elapsed);
       $("result-hearts").textContent = `${state.hearts}/3`;
-      $("play-again").textContent = won ? "Play this puzzle again" : "Give it another go";
+      $("play-again-label").textContent = won ? "Play this puzzle again" : "Give it another go";
       if (focus) $("result-title").focus();
     }
     function resetGame() {
