@@ -10,7 +10,7 @@ Download or clone this repository, then open `index.html` in a modern browser wi
 
 ### Install and play offline
 
-Visit the hosted game over HTTPS (or localhost during development). Once the footer says **Ready to play offline**, the game and its icons are saved on your device. Use your browser's **Install app** option, or on iPhone/iPad use Safari's **Share > Add to Home Screen**. Availability and wording vary by browser.
+Visit the hosted game over HTTPS (or localhost during development) to cache the game and its icons on your device. Use your browser's **Install app** option, or on iPhone/iPad use Safari's **Share > Add to Home Screen**. Availability and wording vary by browser.
 
 The installed app is named **Dog Days**, uses the green paw icon, and opens in its own window on supported devices. After the initial online visit, you can reopen or reload it without a connection, play new daily puzzles, and browse the archive: puzzles are generated on-device, not downloaded. Saved progress stays in that browser's storage. Clearing site data removes offline files and progress; browsers may also evict offline files under storage pressure.
 
@@ -31,7 +31,7 @@ Find all 10 dogs on a 10-by-10 board:
 | Toggle an empty-tile mark | Click or tap once | Space |
 | Place a dog | Double-click or double-tap | Enter |
 
-Use **Undo mark** to reverse a note or **Start over** to reset the current round. Both win and loss screens show an emoji reaction, dogs found, elapsed time, and remaining hearts. Share your result by copying a text summary; manual copying is available when clipboard access is blocked.
+Use **Undo mark** to reverse a note or **Start over** to reset the current round. Both win and loss screens show an emoji reaction, dogs found, elapsed time, and remaining hearts. Share your result by copying a text summary with a link to the page; manual copying is available when clipboard access is blocked.
 
 ## A new puzzle each day
 
@@ -61,4 +61,4 @@ Edit `index.html` and refresh the browser. There is nothing to install or compil
 
 When changing any cached file, bump `CACHE_NAME` in `sw.js`. A new worker caches the complete replacement before installing and waits for all existing game tabs/windows to close before activating, so it does not interrupt an active puzzle. Reopen the game to use the update. During development, browser developer tools can unregister the service worker to bypass the cached version.
 
-Run the offline-cache and installation-metadata checks with `node --test tests\pwa.test.js`.
+Run the offline-cache, installation-metadata, and sharing checks with `node --test tests\pwa.test.js tests\share.test.js`.
