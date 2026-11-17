@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#eef3ed">
   <meta name="description" content="A daily little logic puzzle. Find a place for every dog.">
+  <meta name="apple-mobile-web-app-title" content="Dog Days">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="./icons/paw.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
   <title>Dog Days — your daily dog puzzle</title>
   <style>
     :root {
@@ -268,6 +272,7 @@
       <span class="footer-paw" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="6" cy="7" rx="2.4" ry="3.1" transform="rotate(-25 6 7)"/><ellipse cx="12" cy="5" rx="2.4" ry="3.1"/><ellipse cx="18" cy="7" rx="2.4" ry="3.1" transform="rotate(25 18 7)"/><path d="M5 17c0-3 3-7 7-7s7 4 7 7c0 3-3 4-5 3l-2-.7-2 .7c-2 1-5 0-5-3Z"/></svg></span><br>
       A Project by Preston <span aria-hidden="true">&middot;</span>
       <a href="https://github.com/JediIzzyT/Dog-Days" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17 5 18 5.3 18 5.3c.6 1.7.2 2.9.1 3.2.7.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/></svg>GitHub</a>
+      <p id="offline-status" role="status" hidden></p>
     </footer>
     <noscript><p>This puzzle needs JavaScript enabled. Everything runs right here, offline.</p></noscript>
   </main>
@@ -922,6 +927,34 @@
     loadPuzzle(todayKey);
     setInterval(() => { if (state && !state.outcome) $("timer").textContent = formatTime(elapsed()); }, 1000);
     setInterval(() => { if (state && runningSince !== null) save(); }, 15000);
+  </script>
+  <script>
+    if ("serviceWorker" in navigator && window.isSecureContext && location.protocol !== "file:") {
+      window.addEventListener("load", async () => {
+        const offlineStatus = document.getElementById("offline-status");
+        const reportOfflineError = error => {
+          console.error("Dog Days offline setup failed:", error);
+          offlineStatus.textContent = "Offline play isn't ready. Reconnect and reload to try again.";
+          offlineStatus.hidden = false;
+        };
+        try {
+          const registration = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
+          if (registration.installing) {
+            const worker = registration.installing;
+            worker.addEventListener("statechange", () => {
+              if (worker.state === "redundant" && !registration.active) {
+                reportOfflineError(new Error("The offline files could not be cached."));
+              }
+            });
+          }
+          await navigator.serviceWorker.ready;
+          offlineStatus.textContent = "Ready to play offline.";
+          offlineStatus.hidden = false;
+        } catch (error) {
+          reportOfflineError(error);
+        }
+      });
+    }
   </script>
 </body>
 </html>
