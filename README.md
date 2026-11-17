@@ -2,11 +2,19 @@
 
 **Sit. Stay. Solve.**
 
-A daily, dog-themed logic puzzle in a single, self-contained HTML file. No server, build step, dependencies, or internet connection required to play.
+A daily, dog-themed logic puzzle with self-contained gameplay in one HTML file. No build step or dependencies required.
 
 ## Play
 
 Download or clone this repository, then open `index.html` in a modern browser with JavaScript enabled.
+
+### Install and play offline
+
+Visit the hosted game over HTTPS (or localhost during development). Once the footer says **Ready to play offline**, the game and its icons are saved on your device. Use your browser's **Install app** option, or on iPhone/iPad use Safari's **Share > Add to Home Screen**. Availability and wording vary by browser.
+
+The installed app is named **Dog Days**, uses the green paw icon, and opens in its own window on supported devices. After the initial online visit, you can reopen or reload it without a connection, play new daily puzzles, and browse the archive: puzzles are generated on-device, not downloaded. Saved progress stays in that browser's storage. Clearing site data removes offline files and progress; browsers may also evict offline files under storage pressure.
+
+Opening `index.html` directly still works without a connection, but installation and service-worker caching require HTTPS or localhost. The GitHub link requires an internet connection.
 
 Find all 10 dogs on a 10-by-10 board:
 
@@ -40,10 +48,17 @@ Progress is saved in the browser's local storage when available, including marks
 ## Project structure
 
 - `index.html` - All markup, styles, puzzle generation, and gameplay.
+- `manifest.webmanifest` - Installation name, standalone display, colors, and icon metadata.
+- `sw.js` - Versioned offline cache for the game and install assets.
+- `icons/` - Branded paw SVG, 192px and 512px install icons, and 180px Apple touch icon.
 - `README.md` - Project information and playing instructions.
 
-The responsive interface uses a narrow, centered layout, system sans-serif fonts, keyboard navigation, labeled grid cells, and reduced-motion support. Board squares stay the same size as marks and dogs are added, while resizing with the screen or orientation. There are no external scripts, fonts, or assets.
+The responsive interface uses a narrow, centered layout, system sans-serif fonts, keyboard navigation, labeled grid cells, and reduced-motion support. Board squares stay the same size as marks and dogs are added, while resizing with the screen or orientation. There are no third-party scripts, fonts, or assets.
 
 ## Development
 
-Edit `index.html` and refresh the browser. There is nothing to install or compile. The same file can also be hosted on any static website host.
+Edit `index.html` and refresh the browser. There is nothing to install or compile. To try installation and offline support, run `python -m http.server 8000` from this directory and open `http://localhost:8000`. Deploy all files above together to any HTTPS static website host; relative paths support hosting in a subdirectory.
+
+When changing any cached file, bump `CACHE_NAME` in `sw.js`. A new worker caches the complete replacement before installing and waits for all existing game tabs/windows to close before activating, so it does not interrupt an active puzzle. Reopen the game to use the update. During development, browser developer tools can unregister the service worker to bypass the cached version.
+
+Run the offline-cache and installation-metadata checks with `node --test tests\pwa.test.js`.
