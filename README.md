@@ -16,7 +16,7 @@ The installed app is named **Dog Days**, uses the green paw icon, and opens in i
 
 Opening `index.html` directly still works without a connection, but installation and service-worker caching require HTTPS or localhost. The GitHub link requires an internet connection.
 
-Find all 10 dogs on a 10-by-10 board:
+Find all 8 dogs on an 8-by-8 board:
 
 - Place exactly one dog in each row, column, and colored patch.
 - Dogs cannot touch, even diagonally.
@@ -37,13 +37,13 @@ Use **Undo mark** to reverse a note or **Start over** to reset the current round
 
 ## A new puzzle each day
 
-The browser's local calendar date seeds procedural generation. Each generated board has 10 connected colored patches and is checked for exactly one solution.
+The browser's local calendar date seeds procedural generation. Each generated board has 8 connected colored patches, no more than 2 of which are single-cell patches, and is checked for exactly one solution.
 
 The same date produces the same puzzle. Reopening the game restores your last selected puzzle; choose **Back to today's puzzle** in the calendar to move to the current day. Replaying a puzzle resets progress without changing its layout.
 
 Select the **DAY 000** button beside the date to open the archive calendar. Browse months and choose any puzzle from January 1, 2026 through today; future dates are unavailable. Use the calendar's arrow keys to move between dates, or choose **Back to today's puzzle**. Switching days preserves each puzzle's saved progress.
 
-Completed days have a check mark in the calendar, even after replaying them. Completion history and puzzle progress use one versioned local-storage save, without requiring cookies. Existing per-day saves are imported when their puzzle is opened, and old local-storage completion history is imported when its year is viewed. Legacy data is left intact.
+Completed days have a check mark in the calendar, even after replaying them. Completion history and puzzle progress use one versioned local-storage save, without requiring cookies. Progress from the earlier 10-by-10 puzzles resets with a notice when that day is opened, because the layout has changed. Completed-day history is preserved, and old local-storage completion history is imported when its year is viewed. Legacy data is left intact.
 
 Progress includes marks, correct placements, mistakes, remaining hearts, results, elapsed time, undo history, and the last selected puzzle. Open windows refresh the current puzzle when another window saves it. The timer pauses while the page is hidden. Storage failures are reported in the game; keep the page open if saving is unavailable. Storage availability for locally opened files depends on your browser settings.
 

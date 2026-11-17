@@ -3,7 +3,7 @@
 // Bump the version whenever any offline file changes. Updates activate after all game tabs close.
 const SCOPE = self.registration.scope;
 const CACHE_PREFIX = `dog-days-shell:${SCOPE}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v5`;
 const APP_URL = new URL("./index.html", SCOPE).href;
 const ASSETS = [
   APP_URL,

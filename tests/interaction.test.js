@@ -8,7 +8,7 @@ function game(marks = []) {
   const html = readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
   const timers = new Map(), handlers = {}, elements = {};
   let nextTimer = 0, saved;
-  const cells = Array.from({ length: 100 }, () => {
+  const cells = Array.from({ length: 64 }, () => {
     const classes = new Set(), symbol = {}, attributes = {};
     return {
       symbol, attributes,
@@ -24,15 +24,17 @@ function game(marks = []) {
   const state = { dogs: [], marks: [...marks], wrong: [], hearts: 3, outcome: null };
   const context = vm.createContext({
     state, cells, pendingTap: null, undoStack: [], loadingPuzzle: false,
-    SIZE: 10, COLOR_NAMES: ["sage"],
-    puzzle: { regions: Array(100).fill(0), solution: Array(10).fill(2) },
+    SIZE: 8, COLOR_NAMES: ["sage"],
+    puzzle: { regions: Array(64).fill(0), solution: Array(8).fill(2) },
     $: id => elements[id] ||= {
       setAttribute() {},
       addEventListener(type, handler) { handlers[id] = handler; }
     },
     elapsed: () => 0, formatTime: () => "0:00",
     save() { saved = JSON.stringify(state); },
-    showStatus() {},
+    showStatus(text) { elements.status = text; },
+    finish(outcome) { state.outcome = outcome; },
+    showResult() {},
     setTimeout(callback) { timers.set(++nextTimer, callback); return nextTimer; },
     clearTimeout(id) { timers.delete(id); }
   });
@@ -136,4 +138,28 @@ test("keyboard marking clears the tap candidate without replaying the first mark
   assert.deepEqual(app.state.marks, [0, 1]);
   app.context.handleKey({ key: "Enter", preventDefault() {} }, 2);
   assert.deepEqual(app.state.dogs, [2]);
+});
+
+test("the seventh dog prompts for one more and the eighth wins", () => {
+  const app = game();
+  for (let row = 0; row < 7; row++) app.context.placeDog(row * 8 + 2);
+  assert.equal(app.state.outcome, null);
+  assert.equal(app.elements.status, "One more dog. You've got this.");
+  app.context.placeDog(58);
+  assert.equal(app.state.dogs.length, 8);
+  assert.equal(app.state.outcome, "won");
+});
+
+test("arrow keys stop at the edges of the eight-by-eight board", () => {
+  const app = game();
+  let focused;
+  app.cells.forEach((cell, index) => { cell.focus = () => { focused = index; }; });
+  for (const [key, index, expected] of [
+    ["ArrowRight", 7, 7], ["ArrowDown", 63, 63],
+    ["ArrowLeft", 0, 0], ["ArrowUp", 0, 0],
+    ["ArrowDown", 0, 8], ["ArrowUp", 63, 55]
+  ]) {
+    app.context.handleKey({ key, preventDefault() {} }, index);
+    assert.equal(focused, expected);
+  }
 });
