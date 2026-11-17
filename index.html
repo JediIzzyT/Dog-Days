@@ -69,8 +69,8 @@
     .board-wrap { position: relative; }
     .board {
       display: grid;
-      grid-template-columns: repeat(10, minmax(0, 1fr));
-      grid-template-rows: repeat(10, minmax(0, 1fr));
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-template-rows: repeat(8, minmax(0, 1fr));
       aspect-ratio: 1;
       border: 2px solid #304b3e;
       border-radius: 9px;
@@ -200,7 +200,7 @@
 <body>
   <!--
     THESIS: A daily pocket-sized logic game, not a dashboard.
-    OWN-WORLD: Garden-paper green, inked territory edges, ten sherbet colors, compact sans-serif type.
+    OWN-WORLD: Garden-paper green, inked territory edges, eight sherbet colors, compact sans-serif type.
     STORY: Find every dog's own patch; make quiet pencil marks before committing.
     FIRST VIEWPORT: A 480px centered column; small masthead, concise title, live counters, a square board.
     FORM: A playable puzzle sheet. The board owns the page; completion replaces it with a reaction and real results.
@@ -224,14 +224,14 @@
 
     <section id="game" aria-label="Daily dog puzzle">
       <div class="board-meta">
-        <div class="pack-count"><span class="mini-dog" aria-hidden="true">🐶</span><span><strong id="found">0</strong><span style="color:var(--muted)"> / 10 found</span></span></div>
+        <div class="pack-count"><span class="mini-dog" aria-hidden="true">🐶</span><span><strong id="found">0</strong><span style="color:var(--muted)"> / 8 found</span></span></div>
         <div class="meta-right">
           <time class="timer" id="timer" aria-label="Elapsed time">0:00</time>
           <div class="hearts" id="hearts" role="img" aria-label="3 hearts remaining"></div>
         </div>
       </div>
       <div class="board-wrap">
-        <div class="board" id="board" role="grid" aria-label="10 by 10 dog puzzle. Arrow keys move, Space marks a tile, Enter places a dog." aria-rowcount="10" aria-colcount="10" aria-busy="true"></div>
+        <div class="board" id="board" role="grid" aria-label="8 by 8 dog puzzle. Arrow keys move, Space marks a tile, Enter places a dog." aria-rowcount="8" aria-colcount="8" aria-busy="true"></div>
         <div class="loading" id="loading" role="status"><span aria-hidden="true">🐾</span>Finding today's perfect patch…</div>
       </div>
       <p class="interaction-note"><span><b>Tap</b> to mark ×</span><span class="dot">·</span><span><b>Double-tap</b> to place 🐶</span></p>
@@ -243,7 +243,7 @@
       <details class="how-to">
         <summary><span class="help-label"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .3c0 1.7-2.5 1.9-2.5 3.7M12 17h.01"/></svg>A few ground rules</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
         <div class="rules">
-          <p>Find <strong>10 dogs</strong>: one in every row, column, and colored patch.</p>
+          <p>Find <strong>8 dogs</strong>: one in every row, column, and colored patch.</p>
           <p>Keep dogs apart, <strong>including diagonally</strong>. A wrong placement costs a heart; three ends the round.</p>
           <p>Marks are just notes. Change them freely, without losing a heart.</p>
           <p class="keyboard-note"><strong>Keyboard:</strong> arrows to move · Space to mark · Enter to place.</p>
@@ -302,10 +302,11 @@
 
   <script>
     "use strict";
-    const SIZE = 10;
+    const SIZE = 8;
+    const PUZZLE_VERSION = 3;
     const ALL = (1 << SIZE) - 1;
-    const COLORS = ["#c9ddbd", "#dacdec", "#f0d39d", "#bcd8e9", "#edbeb9", "#c5e1d7", "#e7dcb6", "#d0d5ef", "#ebc7da", "#dce6a9"];
-    const COLOR_NAMES = ["sage", "lavender", "apricot", "blue", "coral", "mint", "sand", "periwinkle", "pink", "lime"];
+    const COLORS = ["#c9ddbd", "#dacdec", "#f0d39d", "#bcd8e9", "#edbeb9", "#c5e1d7", "#e7dcb6", "#d0d5ef"];
+    const COLOR_NAMES = ["sage", "lavender", "apricot", "blue", "coral", "mint", "sand", "periwinkle"];
     const $ = id => document.getElementById(id);
     const today = new Date();
     const firstDateKey = "2026-01-01";
@@ -500,7 +501,7 @@
           add(choices[Math.floor(random() * choices.length)], region);
         }
       }
-      for (let count = paired ? 20 : 10; count < SIZE * SIZE; count++) {
+      for (let count = SIZE * (paired ? 2 : 1); count < SIZE * SIZE; count++) {
         let total = 0;
         const active = [];
         for (let region = 0; region < SIZE; region++) {
@@ -518,7 +519,7 @@
         }
         add(edges[selected][Math.floor(random() * edges[selected].length)], selected);
       }
-      return regions;
+      return sizes.filter(size => size === 1).length <= 2 ? regions : null;
     }
 
     // Stop after a second solution: a daily puzzle must be unambiguous.
@@ -586,7 +587,7 @@
       $("status").classList.toggle("error", error);
     }
     function save() {
-      const snapshot = { ...state, elapsed: elapsed(), undoStack };
+      const snapshot = { ...state, puzzleVersion: PUZZLE_VERSION, elapsed: elapsed(), undoStack };
       let conflict = false;
       if (updateProgress(saved => {
         const latest = saved.puzzles[dateKey];
@@ -610,7 +611,11 @@
         const saved = progress.puzzles[dateKey] || (legacy ? JSON.parse(legacy) : null);
         savedPuzzle = progress.puzzles[dateKey] ? JSON.stringify(progress.puzzles[dateKey]) : null;
         if (!saved) return emptyState();
-        const validCells = list => Array.isArray(list) && list.every(i => Number.isInteger(i) && i >= 0 && i < 100) && new Set(list).size === list.length;
+        if (saved.puzzleVersion !== PUZZLE_VERSION) {
+          showStatus("Puzzles are now 8 by 8. This day's earlier progress has been reset; completed days are still recorded.");
+          return emptyState();
+        }
+        const validCells = list => Array.isArray(list) && list.every(i => Number.isInteger(i) && i >= 0 && i < SIZE * SIZE) && new Set(list).size === list.length;
         if (!saved || !validCells(saved.dogs) || !validCells(saved.marks) || !validCells(saved.wrong) ||
             !Number.isInteger(saved.hearts) || saved.hearts < 0 || saved.hearts > 3 ||
             !Number.isFinite(saved.elapsed) || saved.elapsed < 0 ||
@@ -619,7 +624,7 @@
             saved.wrong.some(i => puzzle.solution[Math.floor(i / SIZE)] === i % SIZE) ||
             saved.wrong.length !== 3 - saved.hearts ||
             saved.marks.some(i => saved.dogs.includes(i) || saved.wrong.includes(i)) ||
-            (saved.outcome === "won") !== (saved.dogs.length === 10) ||
+            (saved.outcome === "won") !== (saved.dogs.length === SIZE) ||
             (saved.outcome === "lost") !== (saved.hearts === 0)) throw new Error("Saved puzzle progress is invalid.");
         const history = saved.undoStack ?? [];
         if (!Array.isArray(history) || history.some(item => !item ||
@@ -760,7 +765,7 @@
         state.dogs.push(index);
         state.marks = state.marks.filter(i => i !== index);
         undoStack = undoStack.filter(item => item.index !== index);
-        showStatus(state.dogs.length === 9 ? "One more dog. You've got this." : "Right at home. Good thinking!");
+        showStatus(state.dogs.length === SIZE - 1 ? "One more dog. You've got this." : "Right at home. Good thinking!");
         if (state.dogs.length === SIZE) finish("won");
       } else {
         state.hearts--;
@@ -804,7 +809,7 @@
       $("reaction").textContent = won ? "🎉" : "🥺";
       $("result-title").textContent = won ? "Who's a good solver?" : "A little ruff.";
       $("result-copy").textContent = won ? "Every dog has a place. And you found them all. Beautifully done." : "Even good solvers have a ruff day. Take a breath. Your pack is worth another try.";
-      $("result-found").textContent = `${state.dogs.length}/10`;
+      $("result-found").textContent = `${state.dogs.length}/${SIZE}`;
       $("result-time").textContent = formatTime(state.elapsed);
       $("result-hearts").textContent = `${state.hearts}/3`;
       $("play-again").textContent = won ? "Play this puzzle again" : "Give it another go";
@@ -879,7 +884,7 @@
       const pageUrl = new URL(location.href);
       pageUrl.search = "";
       pageUrl.hash = "";
-      const text = `Dog Days · ${dateKey}\n${state.outcome === "won" ? "🐶 All dogs home!" : "🥺 A little ruff."}\n${"🐶".repeat(state.dogs.length)}${"▫️".repeat(10 - state.dogs.length)}\n${"❤️".repeat(state.hearts)}${"🤍".repeat(3 - state.hearts)} · ${formatTime(state.elapsed)}\nSit. Stay. Solve.\n${pageUrl.href}`;
+      const text = `Dog Days · ${dateKey}\n${state.outcome === "won" ? "🐶 All dogs home!" : "🥺 A little ruff."}\n${"🐶".repeat(state.dogs.length)}${"▫️".repeat(SIZE - state.dogs.length)}\n${"❤️".repeat(state.hearts)}${"🤍".repeat(3 - state.hearts)} · ${formatTime(state.elapsed)}\nSit. Stay. Solve.\n${pageUrl.href}`;
       try {
         if (!navigator.clipboard) throw new Error("Clipboard is unavailable.");
         await navigator.clipboard.writeText(text);
