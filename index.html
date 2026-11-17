@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eef3ed">
+  <meta name="description" content="A daily little logic puzzle. Find a place for every dog.">
+  <title>Dog Days — your daily dog puzzle</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #eef3ed;
+      --ink: #203d34;
+      --muted: #596e61;
+      --green: #2e614b;
+      --line: #cdd8cd;
+      --red: #b64d51;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 15px;
+      color: var(--ink);
+      background: var(--paper);
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 280px;
+      min-height: 100svh;
+      background-image: radial-gradient(#4c70511a .7px, transparent .7px);
+      background-size: 12px 12px;
+    }
+    button, summary { -webkit-tap-highlight-color: transparent; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    button:focus-visible, summary:focus-visible, textarea:focus-visible {
+      outline: 3px solid #29674f;
+      outline-offset: 4px;
+    }
+    button:disabled { cursor: default; opacity: .4; }
+    button, a, summary { touch-action: manipulation; }
+    [hidden] { display: none !important; }
+    svg { display: block; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .page { width: min(100% - 40px, 480px); margin: 0 auto; padding: 32px 0 24px; }
+    .masthead { display: flex; justify-content: space-between; align-items: center; padding-bottom: 23px; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 9px; font-size: 20px; font-weight: 750; letter-spacing: -.8px; }
+    .brand-icon { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; color: #f5f8ee; background: var(--green); transform: rotate(-12deg); }
+    .brand-icon svg { width: 20px; height: 20px; fill: currentColor; stroke: none; }
+    .daily-label { font-size: 12px; color: var(--muted); }
+    .daily-label span { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #537c4e; vertical-align: 1px; }
+    .intro { padding: 28px 0 25px; }
+    h1 { margin: 0 0 9px; font-size: clamp(29px, 7vw, 39px); line-height: 1.14; letter-spacing: -1.6px; font-weight: 750; }
+    .intro-line { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .intro p { margin: 0; color: var(--muted); font-size: 14px; }
+    .edition { font-size: 11px; color: var(--muted); white-space: nowrap; border: 1px solid #bdccbd; border-radius: 5px; padding: 4px 6px; letter-spacing: .3px; }
+    .board-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; font-size: 13px; }
+    .pack-count { display: flex; align-items: center; gap: 7px; }
+    .pack-count strong { font-weight: 700; }
+    .pack-count .mini-dog { font-size: 18px; }
+    .meta-right { display: flex; align-items: center; gap: 18px; }
+    .timer { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+    .hearts { display: flex; gap: 4px; color: var(--red); }
+    .hearts svg { width: 18px; height: 18px; fill: currentColor; stroke-width: 1.5; transition: fill .2s, color .2s; }
+    .hearts .lost { fill: transparent; color: #84968a; }
+    .board-wrap { position: relative; }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      aspect-ratio: 1;
+      border: 2px solid #304b3e;
+      border-radius: 9px;
+      overflow: hidden;
+      background: #304b3e;
+      box-shadow: 0 6px 0 #203d3410, 0 12px 28px #203d3409;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .board-row { display: contents; }
+    .cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      border-right: 1px solid #28483d23;
+      border-bottom: 1px solid #28483d23;
+      border-radius: 0;
+      background: var(--tile);
+      color: #274137;
+      font-size: clamp(17px, 5vw, 29px);
+      line-height: 1;
+      touch-action: manipulation;
+      transition: filter .12s;
+    }
+    .cell.region-right { border-right: 2px solid #304b3e; }
+    .cell.region-bottom { border-bottom: 2px solid #304b3e; }
+    .cell.last-col { border-right: 0; }
+    .cell.last-row { border-bottom: 0; }
+    .cell .region-letter { position: absolute; top: 4px; left: 4px; font-size: 8px; font-weight: 700; opacity: .75; pointer-events: none; }
+    .cell .symbol { pointer-events: none; }
+    .cell.marked .symbol { font-size: 23px; font-weight: 300; opacity: .6; }
+    .cell.dog .symbol { filter: drop-shadow(0 2px 0 #203d341a); animation: sit .3s cubic-bezier(.16, 1, .3, 1); }
+    .cell.pending { box-shadow: inset 0 0 0 3px #294f4370; }
+    .cell.incorrect { animation: wrong .3s ease-out; }
+    .cell.incorrect .symbol { color: #8c252c; opacity: 1; }
+    .cell:focus-visible { z-index: 1; outline: 3px solid var(--ink); outline-offset: -4px; }
+    @media (hover: hover) { .cell:hover { filter: brightness(1.05); } .text-button:hover, .tool:hover:not(:disabled) { background: #dce6da; } .primary:hover { background: #214c39; } }
+    .interaction-note { display: flex; justify-content: center; gap: 9px; align-items: center; color: var(--muted); font-size: 12px; margin: 20px 0 17px; }
+    .interaction-note b { font-weight: 600; color: #365845; }
+    .interaction-note .dot { opacity: .5; }
+    .tools { display: flex; justify-content: center; gap: 8px; }
+    .tool { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 9px 16px; background: transparent; border: 1px solid #c6d2c4; border-radius: 7px; font-size: 13px; transition: background .15s; }
+    .tool svg { width: 16px; height: 16px; }
+    .status { min-height: 20px; margin: 14px 0 0; text-align: center; font-size: 13px; color: var(--muted); }
+    .status.error { color: #963438; }
+    .how-to { margin-top: 21px; padding: 17px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .how-to summary { display: flex; justify-content: space-between; align-items: center; list-style: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .how-to summary::-webkit-details-marker { display: none; }
+    .how-to .help-label { display: flex; align-items: center; gap: 8px; }
+    .how-to .help-label svg { width: 16px; height: 16px; }
+    .how-to .chevron { width: 15px; height: 15px; transition: transform .2s; }
+    .how-to[open] .chevron { transform: rotate(180deg); }
+    .rules { color: var(--muted); font-size: 13px; line-height: 1.6; margin-top: 15px; }
+    .rules p { margin: 7px 0; }
+    .rules strong { color: var(--ink); font-weight: 600; }
+    .keyboard-note { padding-top: 7px; font-size: 12px; }
+    .footer { margin-top: 23px; text-align: center; color: var(--muted); font-size: 11px; line-height: 1.8; }
+    .footer-paw { display: inline-block; margin-bottom: 6px; opacity: .65; }
+    .footer-paw svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
+    .result { text-align: center; padding: 34px 0 14px; }
+    .result-art { display: grid; place-items: center; width: 132px; height: 132px; border-radius: 50%; margin: 0 auto 25px; background: #dae6ce; position: relative; }
+    .result-dog { font-size: 71px; animation: sit .5s cubic-bezier(.16, 1, .3, 1); }
+    .reaction { position: absolute; bottom: -3px; right: -3px; font-size: 34px; transform: rotate(12deg); }
+    .result h2 { margin: 0 0 11px; font-size: 33px; letter-spacing: -1.1px; line-height: 1.15; }
+    .result-copy { max-width: 310px; margin: 0 auto; color: var(--muted); line-height: 1.65; font-size: 14px; }
+    .result-stats { display: flex; justify-content: center; margin: 30px 0; padding: 22px 0; border-block: 1px solid var(--line); }
+    .stat { flex: 1; }
+    .stat + .stat { border-left: 1px solid var(--line); }
+    .stat strong { display: block; font-size: 23px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .stat span { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; }
+    .primary { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; background: var(--green); color: #fff; padding: 14px 20px; border: 0; border-radius: 7px; font-size: 14px; font-weight: 600; transition: background .15s; }
+    .text-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 16px; border: 0; border-radius: 6px; background: transparent; font-size: 13px; }
+    .result .text-button { margin-top: 9px; }
+    .result .text-button svg { width: 15px; height: 15px; }
+    .tomorrow { color: var(--muted); font-size: 12px; margin-top: 25px; }
+    .share-text { margin-top: 15px; width: 100%; min-height: 115px; padding: 12px; background: #f7faf4; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 13px; color: var(--ink); resize: vertical; }
+    dialog { border: 1px solid #c4d2c1; padding: 27px; border-radius: 12px; max-width: min(360px, calc(100% - 40px)); color: var(--ink); background: #f4f7ef; box-shadow: 0 16px 60px #00000029; }
+    dialog::backdrop { background: #17382966; }
+    dialog h2 { margin: 0 0 12px; font-size: 23px; letter-spacing: -.5px; }
+    dialog p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 0 0 22px; }
+    .dialog-actions { display: flex; gap: 8px; }
+    .dialog-actions button { flex: 1; }
+    .dialog-actions .primary { width: auto; }
+    .loading { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; background: #e8eee2; border: 1px solid var(--line); border-radius: 9px; font-size: 14px; text-align: center; padding: 24px; z-index: 2; }
+    .loading span { font-size: 36px; }
+    @keyframes sit { 0% { transform: scale(.65) rotate(-8deg); } 70% { transform: scale(1.12) rotate(4deg); } 100% { transform: scale(1) rotate(0); } }
+    @keyframes wrong { 25% { transform: translateX(-3px); } 65% { transform: translateX(3px); } }
+    @media (max-width: 390px) {
+      .page { width: calc(100% - 28px); padding-top: 22px; }
+      .masthead { padding-bottom: 18px; }
+      .intro { padding: 24px 0; }
+      .intro-line { align-items: flex-start; }
+      .intro p { font-size: 12px; }
+      .edition { font-size: 10px; }
+      .meta-right { gap: 12px; }
+      .cell .region-letter { font-size: 7px; top: 3px; left: 3px; }
+      .cell.marked .symbol { font-size: 18px; }
+      .interaction-note { font-size: 11px; gap: 6px; }
+      .tool { padding-inline: 13px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <!--
+    THESIS: A daily pocket-sized logic game, not a dashboard.
+    OWN-WORLD: Garden-paper green, inked territory edges, ten sherbet colors, compact sans-serif type.
+    STORY: Find every dog's own patch; make quiet pencil marks before committing.
+    FIRST VIEWPORT: A 480px centered column; small masthead, concise title, live counters, a square board.
+    FORM: A playable puzzle sheet. The board owns the page; completion replaces it with a reaction and real results.
+  -->
+  <main class="page">
+    <header class="masthead">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="6" cy="7" rx="2.4" ry="3.1" transform="rotate(-25 6 7)"/><ellipse cx="12" cy="5" rx="2.4" ry="3.1"/><ellipse cx="18" cy="7" rx="2.4" ry="3.1" transform="rotate(25 18 7)"/><path d="M5 17c0-3 3-7 7-7s7 4 7 7c0 3-3 4-5 3l-2-.7-2 .7c-2 1-5 0-5-3Z"/></svg></span>
+        dog days
+      </div>
+      <div class="daily-label"><span></span>A daily logic puzzle</div>
+    </header>
+
+    <div class="intro">
+      <h1>Sit. Stay. Solve.</h1>
+      <div class="intro-line">
+        <p id="date-label"></p>
+        <span class="edition" id="edition"></span>
+      </div>
+    </div>
+
+    <section id="game" aria-label="Daily dog puzzle">
+      <div class="board-meta">
+        <div class="pack-count"><span class="mini-dog" aria-hidden="true">🐶</span><span><strong id="found">0</strong><span style="color:var(--muted)"> / 10 found</span></span></div>
+        <div class="meta-right">
+          <time class="timer" id="timer" aria-label="Elapsed time">0:00</time>
+          <div class="hearts" id="hearts" role="img" aria-label="3 hearts remaining"></div>
+        </div>
+      </div>
+      <div class="board-wrap">
+        <div class="board" id="board" role="grid" aria-label="10 by 10 dog puzzle. Arrow keys move, Space marks a tile, Enter places a dog." aria-rowcount="10" aria-colcount="10" aria-busy="true"></div>
+        <div class="loading" id="loading" role="status"><span aria-hidden="true">🐾</span>Finding today's perfect patch…</div>
+      </div>
+      <p class="interaction-note"><span><b>Tap</b> to mark ×</span><span class="dot">·</span><span><b>Double-tap</b> to place 🐶</span></p>
+      <div class="tools">
+        <button class="tool" id="undo" type="button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5-5 5 5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg>Undo mark</button>
+        <button class="tool" id="restart" type="button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg>Start over</button>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <details class="how-to">
+        <summary><span class="help-label"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .3c0 1.7-2.5 1.9-2.5 3.7M12 17h.01"/></svg>A few ground rules</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+        <div class="rules">
+          <p>Find <strong>10 dogs</strong>: one in every row, column, and colored patch.</p>
+          <p>Keep dogs apart, <strong>including diagonally</strong>. A wrong placement costs a heart; three ends the round.</p>
+          <p>Marks are just notes. Change them freely, without losing a heart.</p>
+          <p class="keyboard-note"><strong>Keyboard:</strong> arrows to move · Space to mark · Enter to place.</p>
+        </div>
+      </details>
+    </section>
+
+    <section class="result" id="result" aria-labelledby="result-title" hidden>
+      <div class="result-art" aria-hidden="true"><span class="result-dog">🐶</span><span class="reaction" id="reaction">🎉</span></div>
+      <h2 id="result-title" tabindex="-1">Who's a good solver?</h2>
+      <p class="result-copy" id="result-copy"></p>
+      <div class="result-stats">
+        <div class="stat"><strong id="result-found"></strong><span>Dogs found</span></div>
+        <div class="stat"><strong id="result-time"></strong><span>Your time</span></div>
+        <div class="stat"><strong id="result-hearts"></strong><span>Hearts left</span></div>
+      </div>
+      <button class="primary" id="share" type="button">Share your result <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M5 12v8h14v-8"/></svg></button>
+      <button class="text-button" id="play-again" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg>Play this puzzle again</button>
+      <p class="status" id="share-status" role="status" aria-live="polite"></p>
+      <textarea class="share-text" id="share-text" readonly aria-label="Select and copy your result" hidden></textarea>
+      <p class="tomorrow">Another day, another pack. New puzzle tomorrow.</p>
+    </section>
+
+    <footer class="footer">
+      <span class="footer-paw" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="6" cy="7" rx="2.4" ry="3.1" transform="rotate(-25 6 7)"/><ellipse cx="12" cy="5" rx="2.4" ry="3.1"/><ellipse cx="18" cy="7" rx="2.4" ry="3.1" transform="rotate(25 18 7)"/><path d="M5 17c0-3 3-7 7-7s7 4 7 7c0 3-3 4-5 3l-2-.7-2 .7c-2 1-5 0-5-3Z"/></svg></span><br>
+      A little focus. A little space. A lot of good dogs.
+    </footer>
+    <noscript><p>This puzzle needs JavaScript enabled. Everything runs right here, offline.</p></noscript>
+  </main>
+
+  <dialog id="restart-dialog" aria-labelledby="restart-title">
+    <h2 id="restart-title">A fresh start?</h2>
+    <p>Your dogs, marks, and timer will reset. The daily puzzle stays the same.</p>
+    <div class="dialog-actions"><button class="tool" id="cancel-restart" type="button" autofocus>Keep playing</button><button class="primary" id="confirm-restart" type="button">Start over</button></div>
+  </dialog>
+
+  <script>
+    "use strict";
+    const SIZE = 10;
+    const ALL = (1 << SIZE) - 1;
+    const COLORS = ["#c9ddbd", "#dacdec", "#f0d39d", "#bcd8e9", "#edbeb9", "#c5e1d7", "#e7dcb6", "#d0d5ef", "#ebc7da", "#dce6a9"];
+    const COLOR_NAMES = ["sage", "lavender", "apricot", "blue", "coral", "mint", "sand", "periwinkle", "pink", "lime"];
+    const $ = id => document.getElementById(id);
+    const today = new Date();
+    const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const storageKey = `dog-days-v1-${dateKey}`;
+    const edition = Math.floor((Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - Date.UTC(2026, 0, 1)) / 86400000) + 1;
+    let puzzle, state, pendingTap = null, undoStack = [], runningSince = null, storageWarning = false;
+    let cells = [], focusedCell = 0;
+
+    function seededRandom(seed) {
+      return () => {
+        seed |= 0;
+        seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function makeSolution(random) {
+      const solution = [];
+      function fill(row, used) {
+        if (row === SIZE) return true;
+        const choices = Array.from({ length: SIZE }, (_, i) => i);
+        for (let i = SIZE - 1; i > 0; i--) {
+          const j = Math.floor(random() * (i + 1));
+          [choices[i], choices[j]] = [choices[j], choices[i]];
+        }
+        for (const col of choices) {
+          if (!(used & 1 << col) && (!row || Math.abs(col - solution[row - 1]) > 1)) {
+            solution[row] = col;
+            if (fill(row + 1, used | 1 << col)) return true;
+          }
+        }
+        return false;
+      }
+      fill(0, 0);
+      return solution;
+    }
+
+    function growRegions(solution, random, paired) {
+      const regions = Array(SIZE * SIZE).fill(-1);
+      const edges = Array.from({ length: SIZE }, () => []);
+      const weights = Array.from({ length: SIZE }, () => .005 + Math.pow(random(), 4));
+      const sizes = Array(SIZE).fill(0);
+      function add(index, region) {
+        regions[index] = region;
+        sizes[region]++;
+        const row = Math.floor(index / SIZE), col = index % SIZE;
+        if (row > 0) edges[region].push(index - SIZE);
+        if (row < SIZE - 1) edges[region].push(index + SIZE);
+        if (col > 0) edges[region].push(index - 1);
+        if (col < SIZE - 1) edges[region].push(index + 1);
+      }
+      solution.forEach((col, row) => add(row * SIZE + col, row));
+      if (paired) {
+        for (let region = 0; region < SIZE; region++) {
+          const choices = edges[region].filter(index => regions[index] === -1);
+          if (!choices.length) return null;
+          add(choices[Math.floor(random() * choices.length)], region);
+        }
+      }
+      for (let count = paired ? 20 : 10; count < SIZE * SIZE; count++) {
+        let total = 0;
+        const active = [];
+        for (let region = 0; region < SIZE; region++) {
+          edges[region] = edges[region].filter(index => regions[index] === -1);
+          if (edges[region].length && sizes[region] < 38) {
+            total += weights[region];
+            active.push(region);
+          }
+        }
+        if (!active.length) return null;
+        let pick = random() * total, selected = active[active.length - 1];
+        for (const region of active) {
+          pick -= weights[region];
+          if (pick <= 0) { selected = region; break; }
+        }
+        add(edges[selected][Math.floor(random() * edges[selected].length)], selected);
+      }
+      return regions;
+    }
+
+    // Stop after a second solution: a daily puzzle must be unambiguous.
+    function countSolutions(regions, limit = 2) {
+      const placed = Array(SIZE).fill(-1);
+      let count = 0;
+      function search(rows, cols, groups) {
+        if (count >= limit) return;
+        if (rows === ALL) { count++; return; }
+        let bestRow = -1, best = [];
+        for (let row = 0; row < SIZE; row++) {
+          if (rows & 1 << row) continue;
+          const options = [];
+          for (let col = 0; col < SIZE; col++) {
+            if (!(cols & 1 << col) && !(groups & 1 << regions[row * SIZE + col]) &&
+                (row === 0 || placed[row - 1] < 0 || Math.abs(placed[row - 1] - col) > 1) &&
+                (row === SIZE - 1 || placed[row + 1] < 0 || Math.abs(placed[row + 1] - col) > 1)) options.push(col);
+          }
+          if (!options.length) return;
+          if (bestRow < 0 || options.length < best.length) { bestRow = row; best = options; }
+        }
+        for (const col of best) {
+          placed[bestRow] = col;
+          search(rows | 1 << bestRow, cols | 1 << col, groups | 1 << regions[bestRow * SIZE + col]);
+          placed[bestRow] = -1;
+          if (count >= limit) return;
+        }
+      }
+      search(0, 0, 0);
+      return count;
+    }
+
+    async function generatePuzzle(key) {
+      const seed = Number(key.replaceAll("-", ""));
+      const random = seededRandom(seed);
+      let solution;
+      for (let attempt = 0; attempt < 6000; attempt++) {
+        if (attempt % 32 === 0) solution = makeSolution(random);
+        const regions = growRegions(solution, random, attempt < 128);
+        if (regions && countSolutions(regions) === 1) return { regions, solution };
+        // Yield without changing the random stream, including on slower phones.
+        if (attempt % 24 === 23) await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      throw new Error("Could not generate a unique puzzle for this date.");
+    }
+
+    function emptyState() {
+      return { dogs: [], marks: [], wrong: [], hearts: 3, elapsed: 0, outcome: null };
+    }
+    function elapsed() {
+      return state.elapsed + (runningSince === null ? 0 : (Date.now() - runningSince) / 1000);
+    }
+    function formatTime(seconds) {
+      const whole = Math.floor(seconds);
+      return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+    }
+    function pauseTimer() {
+      if (runningSince !== null) { state.elapsed = elapsed(); runningSince = null; }
+    }
+    function resumeTimer() {
+      if (!state.outcome && !document.hidden && runningSince === null) runningSince = Date.now();
+    }
+    function showStatus(text, error = false) {
+      $("status").textContent = text;
+      $("status").classList.toggle("error", error);
+    }
+    function save() {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({ ...state, elapsed: elapsed() }));
+      } catch (error) {
+        if (!storageWarning) {
+          console.warn("Dog Days could not save progress:", error);
+          showStatus("Progress couldn't be saved. Keep this page open.", true);
+          storageWarning = true;
+        }
+      }
+    }
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return emptyState();
+        const saved = JSON.parse(raw);
+        const validCells = list => Array.isArray(list) && list.every(i => Number.isInteger(i) && i >= 0 && i < 100) && new Set(list).size === list.length;
+        if (!validCells(saved.dogs) || !validCells(saved.marks) || !validCells(saved.wrong) ||
+            !Number.isInteger(saved.hearts) || saved.hearts < 0 || saved.hearts > 3 ||
+            !Number.isFinite(saved.elapsed) || saved.elapsed < 0 ||
+            ![null, "won", "lost"].includes(saved.outcome) ||
+            saved.dogs.some(i => puzzle.solution[Math.floor(i / SIZE)] !== i % SIZE) ||
+            saved.wrong.some(i => puzzle.solution[Math.floor(i / SIZE)] === i % SIZE) ||
+            saved.wrong.length !== 3 - saved.hearts ||
+            saved.marks.some(i => saved.dogs.includes(i)) ||
+            (saved.outcome === "won") !== (saved.dogs.length === 10) ||
+            (saved.outcome === "lost") !== (saved.hearts === 0)) throw new Error("Saved puzzle progress is invalid.");
+        return saved;
+      } catch (error) {
+        console.warn("Dog Days could not restore progress:", error);
+        showStatus("Saved progress couldn't be restored. Starting fresh.", true);
+        return emptyState();
+      }
+    }
+
+    function buildBoard() {
+      const firstInRegion = puzzle.regions.map((region, i) => puzzle.regions.indexOf(region) === i);
+      const fragment = document.createDocumentFragment();
+      const rows = Array.from({ length: SIZE }, (_, index) => {
+        const row = document.createElement("div");
+        row.className = "board-row";
+        row.setAttribute("role", "row");
+        row.setAttribute("aria-rowindex", index + 1);
+        fragment.append(row);
+        return row;
+      });
+      cells = puzzle.regions.map((region, index) => {
+        const row = Math.floor(index / SIZE), col = index % SIZE;
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "cell";
+        cell.setAttribute("role", "gridcell");
+        cell.setAttribute("aria-rowindex", row + 1);
+        cell.setAttribute("aria-colindex", col + 1);
+        cell.tabIndex = index === 0 ? 0 : -1;
+        cell.style.setProperty("--tile", COLORS[region]);
+        if (col === SIZE - 1) cell.classList.add("last-col");
+        else if (puzzle.regions[index + 1] !== region) cell.classList.add("region-right");
+        if (row === SIZE - 1) cell.classList.add("last-row");
+        else if (puzzle.regions[index + SIZE] !== region) cell.classList.add("region-bottom");
+        if (firstInRegion[index]) {
+          const letter = document.createElement("span");
+          letter.className = "region-letter";
+          letter.textContent = String.fromCharCode(65 + region);
+          letter.setAttribute("aria-hidden", "true");
+          cell.append(letter);
+        }
+        const symbol = document.createElement("span");
+        symbol.className = "symbol";
+        symbol.setAttribute("aria-hidden", "true");
+        cell.append(symbol);
+        cell.addEventListener("click", event => {
+          if (event.detail === 0) { flushTap(); toggleMark(index); return; }
+          handleTap(index);
+        });
+        cell.addEventListener("dblclick", event => event.preventDefault());
+        cell.addEventListener("keydown", event => handleKey(event, index));
+        cell.addEventListener("focus", () => {
+          cells[focusedCell].tabIndex = -1;
+          focusedCell = index;
+          cell.tabIndex = 0;
+        });
+        rows[row].append(cell);
+        return cell;
+      });
+      $("board").replaceChildren(fragment);
+      $("board").setAttribute("aria-busy", "false");
+    }
+    function render() {
+      for (let i = 0; i < cells.length; i++) {
+        const dog = state.dogs.includes(i), wrong = state.wrong.includes(i), mark = state.marks.includes(i) || wrong;
+        cells[i].classList.toggle("dog", dog);
+        cells[i].classList.toggle("marked", mark);
+        cells[i].classList.toggle("incorrect", wrong);
+        cells[i].querySelector(".symbol").textContent = dog ? "🐶" : mark ? "×" : "";
+        const region = puzzle.regions[i];
+        cells[i].setAttribute("aria-label", `Row ${Math.floor(i / SIZE) + 1}, column ${i % SIZE + 1}, ${COLOR_NAMES[region]} patch ${String.fromCharCode(65 + region)}: ${dog ? "dog found" : wrong ? "known empty" : mark ? "marked empty" : "unmarked"}`);
+      }
+      $("found").textContent = state.dogs.length;
+      $("timer").textContent = formatTime(elapsed());
+      $("hearts").innerHTML = Array.from({ length: 3 }, (_, i) => `<svg class="${i >= state.hearts ? "lost" : ""}" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.7a5.5 5.5 0 0 0-7.8 0L12 5.8l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.5a5.5 5.5 0 0 0 0-7.8Z"/></svg>`).join("");
+      $("hearts").setAttribute("aria-label", `${state.hearts} ${state.hearts === 1 ? "heart" : "hearts"} remaining`);
+      $("undo").disabled = undoStack.length === 0;
+      if (state.outcome) showResult(false);
+    }
+
+    function toggleMark(index) {
+      if (state.outcome || state.dogs.includes(index) || state.wrong.includes(index)) return;
+      const marked = state.marks.includes(index);
+      undoStack.push({ index, marked });
+      if (marked) state.marks = state.marks.filter(i => i !== index);
+      else state.marks.push(index);
+      render();
+      save();
+    }
+    function flushTap() {
+      if (!pendingTap) return;
+      const { index, timer } = pendingTap;
+      clearTimeout(timer);
+      cells[index].classList.remove("pending");
+      pendingTap = null;
+      toggleMark(index);
+    }
+    function cancelTap() {
+      if (!pendingTap) return;
+      clearTimeout(pendingTap.timer);
+      cells[pendingTap.index].classList.remove("pending");
+      pendingTap = null;
+    }
+    function handleTap(index) {
+      if (state.outcome) return;
+      if (pendingTap && pendingTap.index === index) {
+        cancelTap();
+        placeDog(index);
+      } else {
+        flushTap();
+        cells[index].classList.add("pending");
+        pendingTap = { index, timer: setTimeout(flushTap, 340) };
+      }
+    }
+    function placeDog(index) {
+      if (state.outcome || state.dogs.includes(index)) return;
+      if (state.wrong.includes(index)) { showStatus("This tile is already ruled out. Try another patch."); return; }
+      const row = Math.floor(index / SIZE), col = index % SIZE;
+      if (puzzle.solution[row] === col) {
+        state.dogs.push(index);
+        state.marks = state.marks.filter(i => i !== index);
+        undoStack = undoStack.filter(item => item.index !== index);
+        showStatus(state.dogs.length === 9 ? "One more dog. You've got this." : "Right at home. Good thinking!");
+        if (state.dogs.length === SIZE) finish("won");
+      } else {
+        state.hearts--;
+        state.wrong.push(index);
+        state.marks = state.marks.filter(i => i !== index);
+        undoStack = undoStack.filter(item => item.index !== index);
+        showStatus(`Not this tile. ${state.hearts} ${state.hearts === 1 ? "heart" : "hearts"} left.`, true);
+        if (state.hearts === 0) finish("lost");
+      }
+      render();
+      save();
+    }
+    function handleKey(event, index) {
+      let next = index;
+      const row = Math.floor(index / SIZE), col = index % SIZE;
+      if (event.key === "ArrowRight") next = row * SIZE + Math.min(col + 1, SIZE - 1);
+      else if (event.key === "ArrowLeft") next = row * SIZE + Math.max(col - 1, 0);
+      else if (event.key === "ArrowDown") next = Math.min(row + 1, SIZE - 1) * SIZE + col;
+      else if (event.key === "ArrowUp") next = Math.max(row - 1, 0) * SIZE + col;
+      else if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
+        if (event.repeat) return;
+        flushTap();
+        if (event.key === "Enter") placeDog(index);
+        else toggleMark(index);
+        return;
+      } else return;
+      event.preventDefault();
+      cells[next].focus();
+    }
+    function finish(outcome) {
+      pauseTimer();
+      state.outcome = outcome;
+      showResult(true);
+    }
+    function showResult(focus) {
+      const won = state.outcome === "won";
+      $("game").hidden = true;
+      $("result").hidden = false;
+      $("reaction").textContent = won ? "🎉" : "🥺";
+      $("result-title").textContent = won ? "Who's a good solver?" : "A little ruff.";
+      $("result-copy").textContent = won ? "Every dog has a place. And you found them all. Beautifully done." : "Even good solvers have a ruff day. Take a breath. Your pack is worth another try.";
+      $("result-found").textContent = `${state.dogs.length}/10`;
+      $("result-time").textContent = formatTime(state.elapsed);
+      $("result-hearts").textContent = `${state.hearts}/3`;
+      $("play-again").textContent = won ? "Play this puzzle again" : "Give it another go";
+      if (focus) $("result-title").focus();
+    }
+    function resetGame() {
+      cancelTap();
+      state = emptyState();
+      undoStack = [];
+      runningSince = null;
+      $("game").hidden = false;
+      $("result").hidden = true;
+      $("share-text").hidden = true;
+      $("share-status").textContent = "";
+      showStatus("");
+      render();
+      resumeTimer();
+      save();
+      cells[0].focus();
+    }
+    $("undo").addEventListener("click", () => {
+      flushTap();
+      const last = undoStack.pop();
+      if (!last) return;
+      state.marks = state.marks.filter(i => i !== last.index);
+      if (last.marked) state.marks.push(last.index);
+      render();
+      save();
+    });
+    $("restart").addEventListener("click", () => { flushTap(); $("restart-dialog").showModal(); });
+    $("cancel-restart").addEventListener("click", () => $("restart-dialog").close());
+    $("confirm-restart").addEventListener("click", () => { $("restart-dialog").close(); resetGame(); });
+    $("play-again").addEventListener("click", resetGame);
+    $("share").addEventListener("click", async () => {
+      const text = `Dog Days · ${dateKey}\n${state.outcome === "won" ? "🐶 All dogs home!" : "🥺 A little ruff."}\n${"🐶".repeat(state.dogs.length)}${"▫️".repeat(10 - state.dogs.length)}\n${"❤️".repeat(state.hearts)}${"🤍".repeat(3 - state.hearts)} · ${formatTime(state.elapsed)}\nSit. Stay. Solve.`;
+      try {
+        if (!navigator.clipboard) throw new Error("Clipboard is unavailable.");
+        await navigator.clipboard.writeText(text);
+        $("share-status").textContent = "Result copied. Go tell your pack!";
+      } catch (error) {
+        console.info("Dog Days clipboard access unavailable:", error);
+        $("share-text").value = text;
+        $("share-text").hidden = false;
+        $("share-text").focus();
+        $("share-text").select();
+        $("share-status").textContent = "Couldn't access the clipboard. Select and copy your result below.";
+      }
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (!state) return;
+      if (document.hidden) { flushTap(); pauseTimer(); save(); }
+      else resumeTimer();
+    });
+    window.addEventListener("pagehide", () => { if (state) { flushTap(); pauseTimer(); save(); } });
+
+    async function init() {
+      $("date-label").textContent = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+      $("edition").textContent = `DAILY ${String(edition).padStart(3, "0")}`;
+      try {
+        puzzle = await generatePuzzle(dateKey);
+        state = loadState();
+        buildBoard();
+        render();
+        $("restart").disabled = false;
+        $("loading").hidden = true;
+        resumeTimer();
+        setInterval(() => { if (state && !state.outcome) $("timer").textContent = formatTime(elapsed()); }, 1000);
+        setInterval(() => { if (state && runningSince !== null) save(); }, 15000);
+      } catch (error) {
+        console.error("Dog Days initialization failed:", error);
+        $("loading").replaceChildren();
+        const message = document.createElement("p");
+        message.textContent = "Today's puzzle couldn't load. Please try again.";
+        const retry = document.createElement("button");
+        retry.className = "tool";
+        retry.textContent = "Try again";
+        retry.addEventListener("click", () => location.reload());
+        $("loading").append(message, retry);
+      }
+    }
+    init();
+  </script>
+</body>
+</html>
