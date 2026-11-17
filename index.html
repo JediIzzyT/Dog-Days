@@ -267,6 +267,7 @@
       <p class="tomorrow">Another day, another pack. New puzzle tomorrow.</p>
     </section>
 
+    <p class="status error" id="storage-status" role="status" hidden></p>
     <footer class="footer">
       <span class="footer-paw" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="6" cy="7" rx="2.4" ry="3.1" transform="rotate(-25 6 7)"/><ellipse cx="12" cy="5" rx="2.4" ry="3.1"/><ellipse cx="18" cy="7" rx="2.4" ry="3.1" transform="rotate(25 18 7)"/><path d="M5 17c0-3 3-7 7-7s7 4 7 7c0 3-3 4-5 3l-2-.7-2 .7c-2 1-5 0-5-3Z"/></svg></span><br>
       A Project by Preston <span aria-hidden="true">&middot;</span>
@@ -310,10 +311,11 @@
     const firstDateKey = "2026-01-01";
     const todayKey = keyForDate(today);
     let dateKey = todayKey;
-    let storageKey = `dog-days-v1-${dateKey}`;
+    const storageKey = "dog-days-v2";
     let calendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    let loadingPuzzle = false, historyWarning = "", historyReadWarning = false;
+    let loadingPuzzle = false;
     const completionCache = new Map();
+    let savedPuzzle = null;
     let puzzle, state, pendingTap = null, undoStack = [], runningSince = null, storageWarning = false;
     let cells = [], focusedCell = 0;
 
@@ -332,62 +334,70 @@
       const date = dateForKey(key);
       return Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(date.getFullYear(), 0, 1)) / 86400000);
     }
+    function readProgress() {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return { version: 2, puzzles: {}, completed: {}, lastDate: todayKey };
+      const saved = JSON.parse(raw);
+      if (!saved || saved.version !== 2 ||
+          !saved.puzzles || typeof saved.puzzles !== "object" || Array.isArray(saved.puzzles) ||
+          !saved.completed || typeof saved.completed !== "object" || Array.isArray(saved.completed)) {
+        throw new Error("Saved progress has an invalid format.");
+      }
+      return saved;
+    }
+    function reportStorageError(action, error) {
+      console.warn(`Dog Days could not ${action} progress:`, error);
+      storageWarning = true;
+      $("storage-status").textContent = `Progress couldn't be ${action === "save" ? "saved" : "restored"}. Keep this page open.`;
+      $("storage-status").hidden = false;
+    }
+    function updateProgress(update) {
+      try {
+        const saved = readProgress();
+        if (update(saved) === false) return false;
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+        storageWarning = false;
+        $("storage-status").hidden = true;
+        return true;
+      } catch (error) {
+        reportStorageError("save", error);
+        return false;
+      }
+    }
     function readCompletionYear(year) {
       const name = `dog-days-completed-${year}`;
       const histories = [completionCache.get(year)];
       try {
-        const cookie = document.cookie.split("; ").find(item => item.startsWith(`${name}=`));
-        if (cookie) histories.push(cookie.slice(name.length + 1));
+        histories.push(readProgress().completed[year], localStorage.getItem(name));
       } catch (error) {
-        console.warn("Dog Days could not read completion cookies:", error);
-        historyWarning = "Cookies are unavailable here. Completion history uses local storage.";
-      }
-      try {
-        histories.push(localStorage.getItem(name));
-      } catch (error) {
-        if (!historyReadWarning) {
-          console.warn("Dog Days could not read completion history:", error);
-          historyWarning = "Some completion history could not be read in this browser.";
-          historyReadWarning = true;
-        }
+        reportStorageError("restore", error);
       }
       let bits = "0".repeat(366);
       for (const history of histories) {
         if (!history) continue;
         if (!/^[01]{366}$/.test(history)) {
-          console.warn("Dog Days ignored invalid completion history for", year);
-          historyWarning = "Some saved completion history is invalid.";
+          reportStorageError("restore", new Error(`Completion history for ${year} is invalid.`));
           continue;
         }
         bits = Array.from(bits, (bit, i) => bit === "1" || history[i] === "1" ? "1" : "0").join("");
       }
-      completionCache.set(year, bits);
+      try {
+        completionCache.set(year, bits);
+        if (histories.some(Boolean) && readProgress().completed[year] !== bits) {
+          updateProgress(saved => { saved.completed[year] = bits; });
+        }
+      } catch (error) {
+        reportStorageError("restore", error);
+      }
       return bits;
     }
     function recordCompletion() {
       const year = dateForKey(dateKey).getFullYear();
-      const name = `dog-days-completed-${year}`;
       const bits = readCompletionYear(year).split("");
       bits[completionOffset(dateKey)] = "1";
       const value = bits.join("");
       completionCache.set(year, value);
-      let cookieSaved = false, localSaved = false;
-      try {
-        document.cookie = `${name}=${value}; Max-Age=34560000; Path=/; SameSite=Lax`;
-        cookieSaved = document.cookie.split("; ").includes(`${name}=${value}`);
-      } catch (error) {
-        console.warn("Dog Days could not save the completion cookie:", error);
-      }
-      try {
-        localStorage.setItem(name, value);
-        localSaved = true;
-      } catch (error) {
-        console.warn("Dog Days could not save the completion backup:", error);
-      }
-      historyWarning = cookieSaved ? "" : localSaved
-        ? "Cookies are unavailable here. Completion history is saved in this browser's local storage."
-        : "Completion history couldn't be saved. It will last only while this page is open.";
-      if (!cookieSaved && !localSaved) showStatus(historyWarning, true);
+      updateProgress(saved => { saved.completed[year] = value; });
     }
     function renderCalendar() {
       const year = calendarMonth.getFullYear(), month = calendarMonth.getMonth();
@@ -395,9 +405,9 @@
       $("calendar-month").textContent = calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
       $("previous-month").disabled = keyForDate(calendarMonth) <= firstDateKey;
       $("next-month").disabled = year === today.getFullYear() && month === today.getMonth();
-      $("calendar-storage").textContent = historyWarning || (location.protocol === "file:"
-        ? "Local-file mode: completion history uses this browser's local storage when cookies are unavailable."
-        : "Completed days are remembered in cookies on this browser.");
+      $("calendar-storage").textContent = storageWarning
+        ? "Progress couldn't be saved or restored. Keep this page open."
+        : "Progress and completed days are saved together in this browser's site storage.";
       const fragment = document.createDocumentFragment();
       for (let i = 0; i < calendarMonth.getDay(); i++) {
         const spacer = document.createElement("span");
@@ -576,37 +586,71 @@
       $("status").classList.toggle("error", error);
     }
     function save() {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify({ ...state, elapsed: elapsed() }));
-      } catch (error) {
-        if (!storageWarning) {
-          console.warn("Dog Days could not save progress:", error);
-          showStatus("Progress couldn't be saved. Keep this page open.", true);
-          storageWarning = true;
+      const snapshot = { ...state, elapsed: elapsed(), undoStack };
+      let conflict = false;
+      if (updateProgress(saved => {
+        const latest = saved.puzzles[dateKey];
+        if ((latest ? JSON.stringify(latest) : null) !== savedPuzzle) {
+          conflict = true;
+          return false;
         }
+        saved.puzzles[dateKey] = snapshot;
+        saved.lastDate = dateKey;
+      })) savedPuzzle = JSON.stringify(snapshot);
+      else if (conflict) {
+        syncProgress();
+        $("storage-status").textContent = "Progress changed in another window. The latest save has been restored.";
+        $("storage-status").hidden = false;
       }
     }
     function loadState() {
       try {
-        const raw = localStorage.getItem(storageKey);
-        if (!raw) return emptyState();
-        const saved = JSON.parse(raw);
+        const progress = readProgress();
+        const legacy = !progress.puzzles[dateKey] && localStorage.getItem(`dog-days-v1-${dateKey}`);
+        const saved = progress.puzzles[dateKey] || (legacy ? JSON.parse(legacy) : null);
+        savedPuzzle = progress.puzzles[dateKey] ? JSON.stringify(progress.puzzles[dateKey]) : null;
+        if (!saved) return emptyState();
         const validCells = list => Array.isArray(list) && list.every(i => Number.isInteger(i) && i >= 0 && i < 100) && new Set(list).size === list.length;
-        if (!validCells(saved.dogs) || !validCells(saved.marks) || !validCells(saved.wrong) ||
+        if (!saved || !validCells(saved.dogs) || !validCells(saved.marks) || !validCells(saved.wrong) ||
             !Number.isInteger(saved.hearts) || saved.hearts < 0 || saved.hearts > 3 ||
             !Number.isFinite(saved.elapsed) || saved.elapsed < 0 ||
             ![null, "won", "lost"].includes(saved.outcome) ||
             saved.dogs.some(i => puzzle.solution[Math.floor(i / SIZE)] !== i % SIZE) ||
             saved.wrong.some(i => puzzle.solution[Math.floor(i / SIZE)] === i % SIZE) ||
             saved.wrong.length !== 3 - saved.hearts ||
-            saved.marks.some(i => saved.dogs.includes(i)) ||
+            saved.marks.some(i => saved.dogs.includes(i) || saved.wrong.includes(i)) ||
             (saved.outcome === "won") !== (saved.dogs.length === 10) ||
             (saved.outcome === "lost") !== (saved.hearts === 0)) throw new Error("Saved puzzle progress is invalid.");
-        return saved;
+        const history = saved.undoStack ?? [];
+        if (!Array.isArray(history) || history.some(item => !item ||
+            !Number.isInteger(item.index) || item.index < 0 || item.index >= SIZE * SIZE ||
+            typeof item.marked !== "boolean" || saved.dogs.includes(item.index) ||
+            saved.wrong.includes(item.index))) throw new Error("Saved undo history is invalid.");
+        undoStack = history;
+        const { dogs, marks, wrong, hearts, elapsed, outcome } = saved;
+        return { dogs, marks, wrong, hearts, elapsed, outcome };
       } catch (error) {
-        console.warn("Dog Days could not restore progress:", error);
-        showStatus("Saved progress couldn't be restored. Starting fresh.", true);
+        reportStorageError("restore", error);
         return emptyState();
+      }
+    }
+    function syncProgress() {
+      if (!state || loadingPuzzle) return;
+      try {
+        const latest = readProgress().puzzles[dateKey];
+        if (!latest || JSON.stringify(latest) === savedPuzzle) return;
+        cancelTap();
+        pauseTimer();
+        undoStack = [];
+        state = loadState();
+        $("game").hidden = false;
+        $("result").hidden = true;
+        $("share-text").hidden = true;
+        $("share-status").textContent = "";
+        render();
+        resumeTimer();
+      } catch (error) {
+        reportStorageError("restore", error);
       }
     }
 
@@ -852,9 +896,15 @@
     document.addEventListener("visibilitychange", () => {
       if (!state) return;
       if (document.hidden) { cancelTap(); pauseTimer(); save(); }
-      else resumeTimer();
+      else { syncProgress(); resumeTimer(); }
     });
     window.addEventListener("pagehide", () => { if (state) { cancelTap(); pauseTimer(); save(); } });
+    window.addEventListener("pageshow", syncProgress);
+    window.addEventListener("storage", event => {
+      if (event.key !== storageKey) return;
+      syncProgress();
+      if ($("calendar-dialog").open) renderCalendar();
+    });
 
     async function loadPuzzle(key, focus = false) {
       if (loadingPuzzle || key < firstDateKey || key > todayKey) return;
@@ -876,10 +926,10 @@
         const generated = await generatePuzzle(key);
         puzzle = generated;
         dateKey = key;
-        storageKey = `dog-days-v1-${dateKey}`;
         runningSince = null;
         undoStack = [];
         state = loadState();
+        if (!storageWarning) save();
         if (state.outcome === "won") recordCompletion();
         const selected = dateForKey(dateKey);
         $("date-label").textContent = selected.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
@@ -918,7 +968,17 @@
         resumeTimer();
       }
     }
-    loadPuzzle(todayKey);
+    function lastPuzzleDate() {
+      try {
+        const key = readProgress().lastDate;
+        if (typeof key === "string" && /^\d{4}-\d{2}-\d{2}$/.test(key) &&
+            key >= firstDateKey && key <= todayKey && keyForDate(dateForKey(key)) === key) return key;
+      } catch (error) {
+        reportStorageError("restore", error);
+      }
+      return todayKey;
+    }
+    loadPuzzle(lastPuzzleDate());
     setInterval(() => { if (state && !state.outcome) $("timer").textContent = formatTime(elapsed()); }, 1000);
     setInterval(() => { if (state && runningSince !== null) save(); }, 15000);
   </script>
