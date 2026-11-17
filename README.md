@@ -31,6 +31,8 @@ Find all 10 dogs on a 10-by-10 board:
 | Toggle an empty-tile mark | Click or tap once | Space |
 | Place a dog | Double-click or double-tap | Enter |
 
+Marks appear or clear immediately on the first tap. A second tap on the same tile within 340 ms places a dog instead.
+
 Use **Undo mark** to reverse a note or **Start over** to reset the current round. Both win and loss screens show an emoji reaction, dogs found, elapsed time, and remaining hearts. Share your result by copying a text summary with a link to the page; manual copying is available when clipboard access is blocked.
 
 ## A new puzzle each day
@@ -61,4 +63,4 @@ Edit `index.html` and refresh the browser. There is nothing to install or compil
 
 When changing any cached file, bump `CACHE_NAME` in `sw.js`. A new worker caches the complete replacement before installing and waits for all existing game tabs/windows to close before activating, so it does not interrupt an active puzzle. Reopen the game to use the update. During development, browser developer tools can unregister the service worker to bypass the cached version.
 
-Run the offline-cache, installation-metadata, and sharing checks with `node --test tests\pwa.test.js tests\share.test.js`.
+Run the interaction, offline-cache, installation-metadata, and sharing checks with `node --test tests\interaction.test.js tests\pwa.test.js tests\share.test.js`.
