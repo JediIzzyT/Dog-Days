@@ -149,7 +149,6 @@
     .primary { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; background: var(--green); color: #fff; padding: 14px 20px; border: 0; border-radius: 7px; font-size: 14px; font-weight: 600; transition: background .15s; }
     .text-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 16px; border: 0; border-radius: 6px; background: transparent; font-size: 13px; }
     .result .text-button { margin-top: 9px; }
-    .result .text-button svg { width: 15px; height: 15px; }
     .tomorrow { color: var(--muted); font-size: 12px; margin-top: 25px; }
     .share-text { margin-top: 15px; width: 100%; min-height: 115px; padding: 12px; background: #f7faf4; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 13px; color: var(--ink); resize: vertical; }
     dialog { border: 1px solid #c4d2c1; padding: 27px; border-radius: 12px; max-width: min(360px, calc(100% - 40px)); color: var(--ink); background: #f4f7ef; box-shadow: 0 16px 60px #00000029; }
@@ -261,7 +260,7 @@
         <div class="stat"><strong id="result-hearts"></strong><span>Hearts left</span></div>
       </div>
       <button class="primary" id="share" type="button">Share your result <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M5 12v8h14v-8"/></svg></button>
-      <button class="text-button" id="play-again" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg>Play this puzzle again</button>
+      <button class="text-button" id="play-again" type="button">Play this puzzle again</button>
       <p class="status" id="share-status" role="status" aria-live="polite"></p>
       <textarea class="share-text" id="share-text" readonly aria-label="Select and copy your result" hidden></textarea>
       <p class="tomorrow">Another day, another pack. New puzzle tomorrow.</p>
@@ -316,7 +315,11 @@
     let calendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     let loadingPuzzle = false;
     const completionCache = new Map();
+    const puzzleCache = new Map();
     let savedPuzzle = null;
+    let persistedDateKey = null;
+    let legacyPuzzlePending = false;
+    let displayedHearts = -1;
     let puzzle, state, pendingTap = null, undoStack = [], runningSince = null, storageWarning = false;
     let cells = [], focusedCell = 0;
 
@@ -334,6 +337,9 @@
     function completionOffset(key) {
       const date = dateForKey(key);
       return Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(date.getFullYear(), 0, 1)) / 86400000);
+    }
+    function puzzleStorageKey(key) {
+      return `dog-days-puzzle-${key}`;
     }
     function readProgress() {
       const raw = localStorage.getItem(storageKey);
@@ -408,7 +414,7 @@
       $("next-month").disabled = year === today.getFullYear() && month === today.getMonth();
       $("calendar-storage").textContent = storageWarning
         ? "Progress couldn't be saved or restored. Keep this page open."
-        : "Progress and completed days are saved together in this browser's site storage.";
+        : "Progress and completed days are saved in this browser's site storage.";
       const fragment = document.createDocumentFragment();
       for (let i = 0; i < calendarMonth.getDay(); i++) {
         const spacer = document.createElement("span");
@@ -488,10 +494,18 @@
         regions[index] = region;
         sizes[region]++;
         const row = Math.floor(index / SIZE), col = index % SIZE;
-        if (row > 0) edges[region].push(index - SIZE);
-        if (row < SIZE - 1) edges[region].push(index + SIZE);
-        if (col > 0) edges[region].push(index - 1);
-        if (col < SIZE - 1) edges[region].push(index + 1);
+        const neighboringRegions = new Set();
+        function visit(next) {
+          if (regions[next] === -1) edges[region].push(next);
+          else neighboringRegions.add(regions[next]);
+        }
+        if (row > 0) visit(index - SIZE);
+        if (row < SIZE - 1) visit(index + SIZE);
+        if (col > 0) visit(index - 1);
+        if (col < SIZE - 1) visit(index + 1);
+        for (const neighborRegion of neighboringRegions) {
+          edges[neighborRegion] = edges[neighborRegion].filter(edge => edge !== index);
+        }
       }
       solution.forEach((col, row) => add(row * SIZE + col, row));
       if (paired) {
@@ -505,7 +519,6 @@
         let total = 0;
         const active = [];
         for (let region = 0; region < SIZE; region++) {
-          edges[region] = edges[region].filter(index => regions[index] === -1);
           if (edges[region].length && sizes[region] < 38) {
             total += weights[region];
             active.push(region);
@@ -588,28 +601,49 @@
     }
     function save() {
       const snapshot = { ...state, puzzleVersion: PUZZLE_VERSION, elapsed: elapsed(), undoStack };
+      const snapshotJson = JSON.stringify(snapshot);
       let conflict = false;
-      if (updateProgress(saved => {
-        const latest = saved.puzzles[dateKey];
+      try {
+        const key = puzzleStorageKey(dateKey);
+        const raw = localStorage.getItem(key);
+        let latest;
+        if (raw !== null) latest = JSON.parse(raw);
+        else latest = readProgress().puzzles[dateKey];
         if ((latest ? JSON.stringify(latest) : null) !== savedPuzzle) {
           conflict = true;
-          return false;
+        } else {
+          localStorage.setItem(key, snapshotJson);
+          savedPuzzle = snapshotJson;
         }
-        saved.puzzles[dateKey] = snapshot;
-        saved.lastDate = dateKey;
-      })) savedPuzzle = JSON.stringify(snapshot);
-      else if (conflict) {
+      } catch (error) {
+        reportStorageError("save", error);
+        return;
+      }
+      if (conflict) {
         syncProgress();
         $("storage-status").textContent = "Progress changed in another window. The latest save has been restored.";
         $("storage-status").hidden = false;
+        return;
+      }
+      if (legacyPuzzlePending || persistedDateKey !== dateKey) {
+        if (updateProgress(saved => {
+          delete saved.puzzles[dateKey];
+          saved.lastDate = dateKey;
+        })) {
+          legacyPuzzlePending = false;
+          persistedDateKey = dateKey;
+        }
       }
     }
     function loadState() {
       try {
         const progress = readProgress();
-        const legacy = !progress.puzzles[dateKey] && localStorage.getItem(`dog-days-v1-${dateKey}`);
-        const saved = progress.puzzles[dateKey] || (legacy ? JSON.parse(legacy) : null);
-        savedPuzzle = progress.puzzles[dateKey] ? JSON.stringify(progress.puzzles[dateKey]) : null;
+        const raw = localStorage.getItem(puzzleStorageKey(dateKey));
+        const stored = raw === null ? progress.puzzles[dateKey] : JSON.parse(raw);
+        const legacy = !stored && localStorage.getItem(`dog-days-v1-${dateKey}`);
+        const saved = stored || (legacy ? JSON.parse(legacy) : null);
+        legacyPuzzlePending = raw === null && !!progress.puzzles[dateKey];
+        savedPuzzle = stored ? JSON.stringify(stored) : null;
         if (!saved) return emptyState();
         if (saved.puzzleVersion !== PUZZLE_VERSION) {
           showStatus("Puzzles are now 8 by 8. This day's earlier progress has been reset; completed days are still recorded.");
@@ -642,7 +676,8 @@
     function syncProgress() {
       if (!state || loadingPuzzle) return;
       try {
-        const latest = readProgress().puzzles[dateKey];
+        const raw = localStorage.getItem(puzzleStorageKey(dateKey));
+        const latest = raw === null ? readProgress().puzzles[dateKey] : JSON.parse(raw);
         if (!latest || JSON.stringify(latest) === savedPuzzle) return;
         cancelTap();
         pauseTimer();
@@ -713,8 +748,9 @@
       $("board").replaceChildren(fragment);
       $("board").setAttribute("aria-busy", "false");
     }
-    function render() {
-      for (let i = 0; i < cells.length; i++) {
+    function render(indices) {
+      const renderedCells = indices || cells.map((_, index) => index);
+      for (const i of renderedCells) {
         const dog = state.dogs.includes(i), wrong = state.wrong.includes(i), mark = state.marks.includes(i) || wrong;
         cells[i].classList.toggle("dog", dog);
         cells[i].classList.toggle("marked", mark);
@@ -725,7 +761,10 @@
       }
       $("found").textContent = state.dogs.length;
       $("timer").textContent = formatTime(elapsed());
-      $("hearts").innerHTML = Array.from({ length: 3 }, (_, i) => `<svg class="${i >= state.hearts ? "lost" : ""}" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.7a5.5 5.5 0 0 0-7.8 0L12 5.8l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.5a5.5 5.5 0 0 0 0-7.8Z"/></svg>`).join("");
+      if (displayedHearts !== state.hearts) {
+        $("hearts").innerHTML = Array.from({ length: 3 }, (_, i) => `<svg class="${i >= state.hearts ? "lost" : ""}" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.7a5.5 5.5 0 0 0-7.8 0L12 5.8l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.5a5.5 5.5 0 0 0 0-7.8Z"/></svg>`).join("");
+        displayedHearts = state.hearts;
+      }
       $("hearts").setAttribute("aria-label", `${state.hearts} ${state.hearts === 1 ? "heart" : "hearts"} remaining`);
       $("undo").disabled = undoStack.length === 0;
       if (state.outcome) showResult(false);
@@ -737,7 +776,7 @@
       undoStack.push({ index, marked });
       if (marked) state.marks = state.marks.filter(i => i !== index);
       else state.marks.push(index);
-      render();
+      render([index]);
       save();
     }
     function cancelTap() {
@@ -775,7 +814,7 @@
         showStatus(`Not this tile. ${state.hearts} ${state.hearts === 1 ? "heart" : "hearts"} left.`, true);
         if (state.hearts === 0) finish("lost");
       }
-      render();
+      render([index]);
       save();
     }
     function handleKey(event, index) {
@@ -836,7 +875,7 @@
       if (!last) return;
       state.marks = state.marks.filter(i => i !== last.index);
       if (last.marked) state.marks.push(last.index);
-      render();
+      render([last.index]);
       save();
     });
     $("restart").addEventListener("click", () => { cancelTap(); $("restart-dialog").showModal(); });
@@ -906,9 +945,9 @@
     window.addEventListener("pagehide", () => { if (state) { cancelTap(); pauseTimer(); save(); } });
     window.addEventListener("pageshow", syncProgress);
     window.addEventListener("storage", event => {
-      if (event.key !== storageKey) return;
+      if (event.key !== storageKey && event.key !== puzzleStorageKey(dateKey)) return;
       syncProgress();
-      if ($("calendar-dialog").open) renderCalendar();
+      if (event.key === storageKey && $("calendar-dialog").open) renderCalendar();
     });
 
     async function loadPuzzle(key, focus = false) {
@@ -928,7 +967,12 @@
       $("loading").textContent = "Finding the perfect patch\u2026";
       showStatus("");
       try {
-        const generated = await generatePuzzle(key);
+        let generated = puzzleCache.get(key);
+        if (!generated) {
+          generated = await generatePuzzle(key);
+          puzzleCache.set(key, generated);
+          if (puzzleCache.size > 4) puzzleCache.delete(puzzleCache.keys().next().value);
+        }
         puzzle = generated;
         dateKey = key;
         runningSince = null;
@@ -977,7 +1021,10 @@
       try {
         const key = readProgress().lastDate;
         if (typeof key === "string" && /^\d{4}-\d{2}-\d{2}$/.test(key) &&
-            key >= firstDateKey && key <= todayKey && keyForDate(dateForKey(key)) === key) return key;
+            key >= firstDateKey && key <= todayKey && keyForDate(dateForKey(key)) === key) {
+          persistedDateKey = key;
+          return key;
+        }
       } catch (error) {
         reportStorageError("restore", error);
       }
