@@ -39,7 +39,7 @@ Use **Undo mark** to reverse a note or **Start over** to reset the current round
 
 The browser's local calendar date seeds procedural generation. Each generated board has 8 connected colored patches, no more than 2 of which are single-cell patches, and is checked for exactly one solution.
 
-The same date produces the same puzzle. Reopening the game restores your last selected puzzle; choose **Back to today's puzzle** in the calendar to move to the current day. Replaying a puzzle resets progress without changing its layout.
+The same date produces the same puzzle. Reopening the game always opens today's puzzle, restoring its saved progress or result even if it is already completed. Replaying a puzzle resets progress without changing its layout.
 
 Select the **DAY 000** button beside the date to open the archive calendar. Browse months and choose any puzzle from January 1, 2026 through today; future dates are unavailable. Use the calendar's arrow keys to move between dates, or choose **Back to today's puzzle**. Switching days preserves each puzzle's saved progress.
 

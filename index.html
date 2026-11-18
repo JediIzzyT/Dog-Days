@@ -1015,20 +1015,7 @@
         resumeTimer();
       }
     }
-    function lastPuzzleDate() {
-      try {
-        const key = readProgress().lastDate;
-        if (typeof key === "string" && /^\d{4}-\d{2}-\d{2}$/.test(key) &&
-            key >= firstDateKey && key <= todayKey && keyForDate(dateForKey(key)) === key) {
-          persistedDateKey = key;
-          return key;
-        }
-      } catch (error) {
-        reportStorageError("restore", error);
-      }
-      return todayKey;
-    }
-    loadPuzzle(lastPuzzleDate());
+    loadPuzzle(todayKey);
     setInterval(() => { if (state && !state.outcome) $("timer").textContent = formatTime(elapsed()); }, 1000);
     setInterval(() => { if (state && runningSince !== null) save(); }, 15000);
   </script>

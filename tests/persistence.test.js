@@ -28,21 +28,28 @@ function game(store = new Map()) {
       setItem(key, value) { writes.push(key); store.set(key, value); }
     },
     console: { warn(...args) { warnings.push(args); } },
-    $: id => elements[id] ||= { classList: { toggle() {} } },
+    $: id => elements[id] ||= { classList: { toggle() {} }, setAttribute() {} },
     cancelTap() {}, render() {}, renderCalendar() {}
   });
   function run(start, end) {
     const from = html.indexOf(start), to = html.indexOf(end, from);
     assert.ok(from !== -1 && to > from);
-    vm.runInContext(html.slice(from, to), context);
+    return vm.runInContext(html.slice(from, to), context);
   }
   run("    function keyForDate(date) {", "    function renderCalendar() {");
   run("    function emptyState() {", "    function buildBoard() {");
   run('    document.addEventListener("visibilitychange"', "    async function loadPuzzle(");
-  run("    function lastPuzzleDate() {", "    loadPuzzle(lastPuzzleDate());");
   context.state = context.emptyState();
   return {
     context, elements, document, warnings, documentHandlers, windowHandlers, writes, store,
+    start() {
+      context.state = undefined;
+      context.puzzleCache = new Map();
+      context.generatePuzzle = async () => ({ solution: Array.from({ length: 8 }, (_, row) => row) });
+      context.buildBoard = () => {};
+      context.resumeTimer = () => {};
+      return run("    async function loadPuzzle(", "    setInterval(");
+    },
     restore() {
       context.undoStack = [];
       context.state = context.loadState();
@@ -81,7 +88,7 @@ function playedState() {
   };
 }
 
-test("browser and PWA sessions restore all progress, undo history, and the selected date", () => {
+test("browser and PWA sessions restore all puzzle progress and undo history", () => {
   const store = new Map();
   const browser = game(store);
   browser.context.state = playedState();
@@ -91,7 +98,6 @@ test("browser and PWA sessions restore all progress, undo history, and the selec
   const installed = game(store);
   assert.deepEqual(installed.restore(), playedState());
   assert.deepEqual(plain(installed.context.undoStack), plain(browser.context.undoStack));
-  assert.equal(installed.context.lastPuzzleDate(), dateKey);
   assert.equal(browser.saved.version, 2);
 
   installed.context.state.marks.pop();
@@ -115,7 +121,7 @@ test("saving another date preserves prior puzzles and replaying preserves comple
   assert.deepEqual(app.saved.puzzles[dateKey].dogs, [0]);
   assert.deepEqual(app.saved.puzzles["2026-11-15"].dogs, []);
   assert.equal(app.saved.completed["2026"][319], "1");
-  assert.equal(game(store).context.lastPuzzleDate(), "2026-11-15");
+  assert.equal(app.saved.lastDate, "2026-11-15");
 
   app.context.dateKey = dateKey;
   app.restore();
@@ -264,11 +270,23 @@ test("unreadable or unwritable storage reports failure without overwriting exist
   assert.equal(full.elements["storage-status"].hidden, false);
 });
 
-test("invalid or future last-selected dates fall back to today", () => {
-  for (const lastDate of ["2026-02-31", "2027-01-01", "2025-12-31", null]) {
-    const app = game(new Map([[storageKey, JSON.stringify({
-      version: 2, completed: {}, puzzles: {}, lastDate
-    })]]));
-    assert.equal(app.context.lastPuzzleDate(), dateKey);
+test("sessions always open today and restore its progress regardless of the last date or outcome", async () => {
+  for (const lastDate of ["2026-11-15", dateKey, "2026-02-31", "2027-01-01", null]) {
+    for (const outcome of [null, "won", "lost"]) {
+      const saved = outcome === "won"
+        ? { dogs: Array.from({ length: 8 }, (_, row) => row * 9), marks: [], wrong: [], hearts: 3, elapsed: 42, outcome }
+        : outcome === "lost"
+          ? { dogs: [], marks: [], wrong: [1, 2, 3], hearts: 0, elapsed: 42, outcome }
+          : playedState();
+      const app = game(new Map([
+        [storageKey, JSON.stringify({ version: 2, completed: {}, puzzles: {}, lastDate })],
+        [`dog-days-puzzle-${dateKey}`, JSON.stringify({ ...saved, puzzleVersion: 3 })]
+      ]));
+      await app.start();
+      assert.equal(app.context.dateKey, dateKey);
+      assert.deepEqual(plain(app.context.state), saved);
+      assert.equal(app.saved.lastDate, dateKey);
+      assert.equal(app.warnings.length, 0);
+    }
   }
 });
